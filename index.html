@@ -740,11 +740,20 @@
 
   /* ============ state ============ */
   var SAMPLE_STYLE = { title:'The rise of Google Chrome', subtitle:'Web browser market share, January 2009 to October 2023', source:'Source: StatCounter GlobalStats · Get the data', note:'Annual production-based emissions of carbon dioxide (CO₂) from fuel measured in tonnes. This is based on territorial emissions, which do not account for emissions embedded in traded goods.', unit:'%' };
-  function blankStyle(title){ return { title: title||'', subtitle:'', source:'', note:'', unit:'' }; }
+  function blankStyle(title, subtitle, source){ return { title: title||'', subtitle: subtitle||'', source: source||'', note:'', unit:'' }; }
   function humanizeFileName(name){
     var base = String(name||'').replace(/\.[^./\\]+$/,'').replace(/^Sample:\s*/i,'');
     base = base.replace(/[_-]+/g,' ').trim();
     return base.replace(/\b\w/g, function(c){ return c.toUpperCase(); }) || 'Untitled chart';
+  }
+  // Best-effort subtitle from the columns actually mapped after upload (call after
+  // resetMappingDefaults, so state.mapping already points at real column names).
+  function autoSubtitle(){
+    var measures = state.mapping.series.length ? state.mapping.series : numericColumns().map(function(c){return c.name;});
+    measures = measures.slice(0,3).filter(Boolean);
+    if(!measures.length) return '';
+    var measureStr = measures.join(', ') + (numericColumns().length>3 ? ', +'+(numericColumns().length-3)+' more' : '');
+    return state.mapping.category ? measureStr+' by '+state.mapping.category : measureStr;
   }
   var state = {
     step: 'visualize',
@@ -819,7 +828,9 @@
     state.rangeHighlights = [];
     // Each fresh dataset gets its own title/subtitle/source/note/unit — never the
     // previous chart's story (display prefs like legend/labels carry over as-is).
-    var content = sample ? SAMPLE_STYLE : blankStyle(humanizeFileName(name));
+    // Subtitle/source are best-effort guesses from the mapped columns and file name;
+    // the user can always overwrite them in the Layout tab.
+    var content = sample ? SAMPLE_STYLE : blankStyle(humanizeFileName(name), autoSubtitle(), name ? 'Source: '+name : '');
     Object.assign(state.style, content);
     syncStyleInputs();
     var banner = document.getElementById('sampleBanner');
@@ -1917,7 +1928,9 @@
     var plotPoints = [];
     var freeAnchors = {};
     var manyBarCats = chartType==='bar' && !state.barHorizontal && sd && sd.categories.length>10;
-    var PL = 56, PR = 24, PT_ = 10, PB = manyBarCats ? 70 : 30;
+    var manyWfCats = chartType==='waterfall' && wd && wd.length>10;
+    var manyComboCats = chartType==='combo' && cd && cd.categories.length>10;
+    var PL = 56, PR = 24, PT_ = 10, PB = (manyBarCats || manyWfCats || manyComboCats) ? 70 : 30;
     if(chartType==='line' && state.style.showLabels) PR = 92;
     else if((chartType==='line' || (chartType==='bar' && !state.barHorizontal)) && state.style.showRightAxis) PR = Math.max(PR, 48);
 
@@ -2057,6 +2070,28 @@
   }
 
   /* ---- bar ---- */
+  // Shared x-axis category label renderer for band-scale charts (bar/waterfall/combo):
+  // rotates labels once there are too many categories or they're too wide for their
+  // band, and thins them further if even rotated they'd still crowd each other.
+  function drawCategoryTicks(g, categories, catScale, o, t){
+    var catCount = categories.length;
+    var bandW0 = catScale.bandwidth();
+    var estLabelW = d3.max(categories, function(c){ return measureWidth(String(c), 11.5, 400); }) || 0;
+    var needsRotate = catCount>10 || estLabelW > bandW0*1.4;
+    var tickStride = 1;
+    if(needsRotate && bandW0*tickStride < 16){ tickStride = Math.ceil(16/Math.max(bandW0,1)); }
+    categories.forEach(function(cat, ci){
+      if(ci % tickStride !== 0) return;
+      var band = catScale(cat), bw = catScale.bandwidth();
+      if(needsRotate){
+        var bx=o.x+band+bw/2, by=o.y+o.h+12;
+        textEl(g, bx, by, cat, {'font-size':10.5, fill:t.inkSoft, 'text-anchor':'end', transform:'rotate(-40 '+bx+' '+by+')'});
+      } else {
+        textEl(g, o.x+band+bw/2, o.y+o.h+16, cat, {'font-size':11.5, fill:t.inkSoft, 'text-anchor':'middle'});
+      }
+    });
+    return needsRotate;
+  }
   function drawBar(g, sd, o){
     var points = [];
     var horizontal = state.barHorizontal;
@@ -2083,23 +2118,14 @@
     });
     // Many columns: rotate labels so they don't run into each other, and if they'd still
     // be too tight even rotated, show only every Nth one rather than an unreadable smear.
-    var catCount = sd.categories.length;
-    var bandW0 = catScale.bandwidth();
-    var estLabelW = d3.max(sd.categories, function(c){ return measureWidth(String(c), 11.5, 400); }) || 0;
-    var needsRotate = !horizontal && (catCount>10 || estLabelW > bandW0*1.4);
-    var tickStride = 1;
-    if(needsRotate && bandW0*tickStride < 16){ tickStride = Math.ceil(16/Math.max(bandW0,1)); }
-    sd.categories.forEach(function(cat, ci){
-      var band = catScale(cat), bw = catScale.bandwidth();
-      if(horizontal){ textEl(g, o.x-8, o.y+band+bw/2+4, cat, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'end'}); return; }
-      if(ci % tickStride !== 0) return;
-      if(needsRotate){
-        var bx=o.x+band+bw/2, by=o.y+o.h+12;
-        textEl(g, bx, by, cat, {'font-size':10.5, fill:o.t.inkSoft, 'text-anchor':'end', transform:'rotate(-40 '+bx+' '+by+')'});
-      } else {
-        textEl(g, o.x+band+bw/2, o.y+o.h+16, cat, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'middle'});
-      }
-    });
+    if(horizontal){
+      sd.categories.forEach(function(cat, ci){
+        var band = catScale(cat), bw = catScale.bandwidth();
+        textEl(g, o.x-8, o.y+band+bw/2+4, cat, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'end'});
+      });
+    } else {
+      drawCategoryTicks(g, sd.categories, catScale, o, o.t);
+    }
     if(horizontal) el('line', {x1:o.x,y1:o.y,x2:o.x,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
     else el('line', {x1:o.x,y1:o.y+o.h,x2:o.x+o.w,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
 
@@ -2436,9 +2462,7 @@
       el('line', {x1:o.x,y1:gy,x2:o.x+o.w,y2:gy, stroke:o.t.grid,'stroke-width':1}, g);
       textEl(g, o.x-8, gy+3, tickLabel(tk,wfTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'end'});
     });
-    wd.forEach(function(d){
-      textEl(g, o.x+catScale(d.category)+catScale.bandwidth()/2, o.y+o.h+16, d.category, {'font-size':11, fill:o.t.inkSoft, 'text-anchor':'middle'});
-    });
+    drawCategoryTicks(g, wd.map(function(d){return d.category;}), catScale, o, o.t);
     el('line', {x1:o.x,y1:o.y+valueScale(0),x2:o.x+o.w,y2:o.y+valueScale(0), stroke:o.t.axis,'stroke-width':1}, g);
 
     var bw = Math.min(catScale.bandwidth(), 44);
@@ -2483,7 +2507,7 @@
       el('line', {x1:o.x,y1:gy,x2:o.x+o.w,y2:gy, stroke:o.t.grid,'stroke-width':1}, g);
       textEl(g, o.x-8, gy+3, fmtNum(tk), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'end'});
     });
-    cd.categories.forEach(function(cat){ textEl(g, o.x+catScale(cat)+catScale.bandwidth()/2, o.y+o.h+16, cat, {'font-size':11, fill:o.t.inkSoft, 'text-anchor':'middle'}); });
+    drawCategoryTicks(g, cd.categories, catScale, o, o.t);
     el('line', {x1:o.x,y1:o.y+valueScale(0),x2:o.x+o.w,y2:o.y+valueScale(0), stroke:o.t.axis,'stroke-width':1}, g);
     var idx100Y = o.y+valueScale(100);
     el('line', {x1:o.x,y1:idx100Y,x2:o.x+o.w,y2:idx100Y, stroke:o.t.muted,'stroke-width':1,'stroke-dasharray':'3,3'}, g);
