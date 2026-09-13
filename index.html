@@ -447,11 +447,19 @@
             <div class="field"><label for="sourceInput">Source</label><input type="text" id="sourceInput" maxlength="90"></div>
             <div class="field">
               <label for="noteInput">Note</label>
-              <textarea id="noteInput" maxlength="400"></textarea>
+              <textarea id="noteInput" maxlength="1000"></textarea>
               <button class="btn small ghost" id="genInsightBtn" type="button" style="align-self:flex-start;">&#10024; Generate insight summary</button>
               <div class="fine" id="insightHint"></div>
             </div>
             <div class="field"><label for="unitInput">Axis unit (optional)</label><input type="text" id="unitInput" maxlength="6" placeholder="e.g. %, $, pts"></div>
+            <h4>Axis titles</h4>
+            <div class="field"><label for="xAxisLabelInput">X-axis label</label><input type="text" id="xAxisLabelInput" maxlength="40" placeholder="e.g. Distribution center"></div>
+            <div class="field"><label for="yAxisLabelInput">Y-axis label (left)</label><input type="text" id="yAxisLabelInput" maxlength="40" placeholder="e.g. Shipments"></div>
+            <div class="field">
+              <label for="yAxisLabelRightInput">Y-axis label (right)</label>
+              <input type="text" id="yAxisLabelRightInput" maxlength="40" placeholder="e.g. Shipments">
+              <div class="fine">Only shown when "Mirror value axis on right" is on (Refine tab).</div>
+            </div>
           </div>
         </div>
 
@@ -739,8 +747,8 @@
   ];
 
   /* ============ state ============ */
-  var SAMPLE_STYLE = { title:'The rise of Google Chrome', subtitle:'Web browser market share, January 2009 to October 2023', source:'Source: StatCounter GlobalStats · Get the data', note:'Annual production-based emissions of carbon dioxide (CO₂) from fuel measured in tonnes. This is based on territorial emissions, which do not account for emissions embedded in traded goods.', unit:'%' };
-  function blankStyle(title, subtitle, source){ return { title: title||'', subtitle: subtitle||'', source: source||'', note:'', unit:'' }; }
+  var SAMPLE_STYLE = { title:'The rise of Google Chrome', subtitle:'Web browser market share, January 2009 to October 2023', source:'Source: StatCounter GlobalStats · Get the data', note:'Annual production-based emissions of carbon dioxide (CO₂) from fuel measured in tonnes. This is based on territorial emissions, which do not account for emissions embedded in traded goods.', unit:'%', xAxisLabel:'', yAxisLabel:'', yAxisLabelRight:'' };
+  function blankStyle(title, subtitle, source){ return { title: title||'', subtitle: subtitle||'', source: source||'', note:'', unit:'', xAxisLabel:'', yAxisLabel:'', yAxisLabelRight:'' }; }
   function humanizeFileName(name){
     var base = String(name||'').replace(/\.[^./\\]+$/,'').replace(/^Sample:\s*/i,'');
     base = base.replace(/[_-]+/g,' ').trim();
@@ -837,8 +845,8 @@
     if(banner) banner.hidden = !state.isSample;
   }
   function syncStyleInputs(){
-    var ids = ['titleInput','subtitleInput','sourceInput','noteInput','unitInput'];
-    var keys = ['title','subtitle','source','note','unit'];
+    var ids = ['titleInput','subtitleInput','sourceInput','noteInput','unitInput','xAxisLabelInput','yAxisLabelInput','yAxisLabelRightInput'];
+    var keys = ['title','subtitle','source','note','unit','xAxisLabel','yAxisLabel','yAxisLabelRight'];
     ids.forEach(function(id,i){
       var el_ = document.getElementById(id);
       if(el_) el_.value = state.style[keys[i]];
@@ -1020,6 +1028,100 @@
     var den = Math.sqrt(dx2*dy2);
     return den ? num/den : null;
   }
+  function meanStd(values){
+    var n = values.length;
+    var mean = values.reduce(function(a,b){return a+b;},0)/n;
+    var variance = values.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/n;
+    return { mean:mean, std:Math.sqrt(variance) };
+  }
+  // Whichever category+value pairs the current chart is actually plotting, normalized to
+  // one shape so the deep-analysis layer (concentration/variability/outliers) can read
+  // "the whole story" regardless of chart type. Multi-series bar/line/heatmap collapse
+  // to a per-category total, since that's what a reader means by "which categories lead".
+  function toItems(){
+    if(state.chartType==='bar' || state.chartType==='line' || state.chartType==='heatmap'){
+      var sd = seriesData();
+      if(!sd.series.length || !sd.categories.length) return null;
+      if(sd.series.length===1){
+        return sd.series[0].values.map(function(v){ return {label:v.category, value:v.value}; });
+      }
+      return sd.categories.map(function(cat,ci){
+        var total = sd.series.reduce(function(a,s){ return a+s.values[ci].value; },0);
+        return {label:cat, value:total};
+      });
+    }
+    if(state.chartType==='pie') return pieData().map(function(d){ return {label:d.category, value:d.value}; });
+    if(state.chartType==='waterfall') return waterfallData().slice(0,-1).map(function(d){ return {label:d.category, value:d.value}; });
+    if(state.chartType==='range') return rangeData().map(function(d){ return {label:d.category, value:d.b-d.a}; });
+    return null;
+  }
+  // Pareto-style concentration: how much of the total sits in the top slice.
+  function concentrationNarrative(items, noun){
+    if(!items || items.length<4) return null;
+    var total = items.reduce(function(a,b){return a+b.value;},0);
+    if(!total) return null;
+    var sorted = items.slice().sort(function(a,b){return b.value-a.value;});
+    var topN = Math.max(1, Math.round(items.length*0.2));
+    var topSum = sorted.slice(0,topN).reduce(function(a,b){return a+b.value;},0);
+    var share = topSum/total;
+    var names = sorted.slice(0, Math.min(topN,3)).map(function(d){return d.label;});
+    var level = share>=0.7 ? 'highly concentrated' : share>=0.5 ? 'moderately concentrated' : 'fairly evenly spread';
+    return 'The top '+topN+' of '+items.length+' '+noun+' ('+names.join(', ')+(topN>3?' and others':'')+') account for '+Math.round(share*100)+'% of the total — the distribution is '+level+'.';
+  }
+  // Spread of values around the mean, in the axis unit so it reads naturally next to the chart.
+  function variabilityNarrative(items, unit){
+    if(!items || items.length<3) return null;
+    var ms = meanStd(items.map(function(d){return d.value;}));
+    var cv = ms.mean ? ms.std/Math.abs(ms.mean) : 0;
+    var level = cv>=0.6 ? 'highly variable' : cv>=0.3 ? 'moderately variable' : 'fairly consistent';
+    var suffix = unit==='%' ? 'pp' : '';
+    return 'Values are '+level+' from one to the next (average '+fmtVal(ms.mean)+suffix+', typical spread of ±'+fmtVal(ms.std)+suffix+').';
+  }
+  // Categories sitting well outside the pack (>1.5 std from the mean) — the ones a
+  // reader would otherwise have to hunt for by eye.
+  function outlierNarrative(items){
+    if(!items || items.length<4) return null;
+    var ms = meanStd(items.map(function(d){return d.value;}));
+    if(!ms.std) return null;
+    var outliers = items.filter(function(d){ return Math.abs(d.value-ms.mean) > ms.std*1.5; })
+      .sort(function(a,b){ return Math.abs(b.value-ms.mean)-Math.abs(a.value-ms.mean); });
+    if(!outliers.length) return null;
+    var bits = outliers.slice(0,2).map(function(d){
+      var dir = d.value>ms.mean ? 'well above' : 'well below';
+      return d.label+' stands out, sitting '+dir+' the average ('+fmtVal(d.value)+' vs. '+fmtVal(ms.mean)+' mean)';
+    });
+    return bits.join('; ')+'.';
+  }
+  // Biggest single-step swing and how often the series moved up vs. down — the texture
+  // that "first vs. last" alone misses (a flat headline can still hide a volatile middle).
+  function seriesVolatility(values){
+    if(values.length<3) return null;
+    var maxJump=null, ups=0, downs=0;
+    for(var i=1;i<values.length;i++){
+      var d = values[i].value-values[i-1].value;
+      if(!maxJump || Math.abs(d)>Math.abs(maxJump.delta)) maxJump = {delta:d, from:values[i-1].category, to:values[i].category};
+      if(d>0) ups++; else if(d<0) downs++;
+    }
+    return { maxJump:maxJump, ups:ups, downs:downs };
+  }
+  // Whole-dataset framing, independent of whatever chart/mapping is currently selected —
+  // the "scope of the story" the reader is about to get a slice of.
+  function datasetOverview(){
+    var n = state.rows.length;
+    var colCount = state.columns.length;
+    var nums = numericColumns().map(function(c){return c.name;});
+    var texts = textColumns().map(function(c){return c.name;});
+    var parts = [n+' row'+(n===1?'':'s')+' across '+colCount+' column'+(colCount===1?'':'s')];
+    if(texts.length) parts.push(texts[0]+' as the primary category'+(texts.length>1?' (+'+(texts.length-1)+' more text column'+(texts.length-1===1?'':'s')+')':''));
+    if(nums.length) parts.push(nums.slice(0,4).join(', ')+(nums.length>4?', +'+(nums.length-4)+' more':'')+' as measure'+(nums.length===1?'':'s'));
+    var catCol = state.mapping.category;
+    if(catCol && typeof categoryIsDateLike==='function' && categoryIsDateLike()){
+      var rows = typeof getEffectiveRows==='function' ? getEffectiveRows() : state.rows;
+      var seq = rows.map(function(r){return String(r[catCol]);}).filter(Boolean);
+      if(seq.length>1) parts.push('spanning '+seq[0]+' to '+seq[seq.length-1]);
+    }
+    return parts.join(' — ')+'.';
+  }
   function summarizeLine(){
     var sd = seriesData();
     if(!sd.series.length || !sd.categories.length) return ['No data to summarize yet.'];
@@ -1033,6 +1135,10 @@
     if(sd.series.length===1){
       var s0=stats[0];
       out.push(s0.name+' '+pctChangeWords(s0.first,s0.last)+' between '+firstCat+' and '+lastCat+', peaking at '+fmtVal(s0.max.value)+' ('+s0.max.category+').');
+      var vol = seriesVolatility(sd.series[0].values);
+      if(vol && vol.maxJump && (vol.ups+vol.downs)>=3){
+        out.push('The sharpest single-period move was '+(vol.maxJump.delta>=0?'a rise':'a drop')+' of '+fmtVal(Math.abs(vol.maxJump.delta))+' between '+vol.maxJump.from+' and '+vol.maxJump.to+'; overall it moved up in '+vol.ups+' of '+(vol.ups+vol.downs)+' steps.');
+      }
       return out;
     }
     var topRiser = stats.reduce(function(a,b){return b.delta>a.delta?b:a;});
@@ -1160,7 +1266,16 @@
     }
     return out.join(' ');
   }
+  // Four layers, read in order like an analyst would: what the dataset actually is
+  // (scope), what the chart's own shape says (headline), what the numbers underneath
+  // it look like once you step back (concentration / spread / outliers), then what the
+  // reader themselves has already flagged (highlights & notes). Each layer degrades
+  // gracefully — a chart type with no deep-analysis mapping just skips that paragraph
+  // instead of leaving a gap.
   function generateInsightSummary(){
+    var paragraphs = [];
+    paragraphs.push(datasetOverview());
+
     var lines;
     if(state.chartType==='line') lines = summarizeLine();
     else if(state.chartType==='bar') lines = summarizeBar();
@@ -1170,11 +1285,22 @@
     else if(state.chartType==='combo') lines = summarizeCombo();
     else if(state.chartType==='heatmap') lines = summarizeHeatmap();
     else if(state.chartType==='range') lines = summarizeRangePlot();
-    else lines = ['No summary available for this chart type.'];
-    var text = lines.join(' ');
+    else lines = [];
+    if(lines.length) paragraphs.push(lines.join(' '));
+
+    var items = toItems();
+    var noun = state.mapping.category ? String(state.mapping.category).toLowerCase()+' entries' : 'categories';
+    var deep = [];
+    var conc = concentrationNarrative(items, noun); if(conc) deep.push(conc);
+    var varb = variabilityNarrative(items, state.style.unit); if(varb) deep.push(varb);
+    var outl = outlierNarrative(items); if(outl) deep.push(outl);
+    if(deep.length) paragraphs.push(deep.join(' '));
+
     var hi = summarizeHighlights();
-    if(hi) text += ' ' + hi;
-    if(text.length>400) text = text.slice(0,397).replace(/\s+\S*$/,'') + '…';
+    if(hi) paragraphs.push(hi);
+
+    var text = paragraphs.join('\n\n');
+    if(text.length>900) text = text.slice(0,897).replace(/\s+\S*$/,'') + '…';
     return text;
   }
 
@@ -1266,7 +1392,7 @@
       }
     });
 
-    ['titleInput','subtitleInput','sourceInput'].forEach(function(id){
+    ['titleInput','subtitleInput','sourceInput','xAxisLabelInput','yAxisLabelInput','yAxisLabelRightInput'].forEach(function(id){
       document.getElementById(id).addEventListener('input', function(){
         var key = id.replace('Input','');
         state.style[key] = this.value;
@@ -1287,6 +1413,9 @@
     document.getElementById('sourceInput').value = state.style.source;
     document.getElementById('noteInput').value = state.style.note;
     document.getElementById('unitInput').value = state.style.unit;
+    document.getElementById('xAxisLabelInput').value = state.style.xAxisLabel;
+    document.getElementById('yAxisLabelInput').value = state.style.yAxisLabel;
+    document.getElementById('yAxisLabelRightInput').value = state.style.yAxisLabelRight;
 
     document.getElementById('exportPngBtn').addEventListener('click', function(){ openExportModal('png'); });
     document.getElementById('exportSvgBtn').addEventListener('click', function(){ openExportModal('svg'); });
@@ -1908,7 +2037,23 @@
     if(chartType==='combo'){ cd = comboData(); needsLegend = needsLegend && cd.series.length>=2; }
     if(chartType==='heatmap'){ sd = seriesData(); needsLegend = false; legendH = 40; }
     if(chartType==='range'){ rd = rangeData(); needsLegend = true; }
-    if(needsLegend) legendH = 34;
+
+    // Legend items are built here (before layout height is fixed) rather than after
+    // drawing, so a legend that wraps to 2-3 rows (many series/slices/groups) can claim
+    // that much footer space up front instead of a flat one-row assumption that let a
+    // wrapped legend run straight into the note/source text underneath it.
+    var legendItems = null;
+    if(needsLegend){
+      if(chartType==='pie') legendItems = pd.map(function(s){return {name:s.category, color:s.color};});
+      else if(chartType==='scatter') legendItems = scd.groups.map(function(g,i){return {name:g, color: cats()[i%8]};});
+      else if(chartType==='combo') legendItems = cd.series.map(function(s,i){return {name:s.name+(i===0?' (bars)':' (line)'), color:s.color};});
+      else if(chartType==='range') legendItems = [{name:state.mapping.rangeA+' (from)', color:t.muted},{name:state.mapping.rangeB+' (to)', color:t.navy}];
+      else legendItems = sd.series.map(function(s){return {name:s.name, color:s.color};});
+    }
+    if(chartType==='heatmap') legendH = 40;
+    else if(needsLegend && legendItems && legendItems.length){
+      legendH = computeLegendRows(legendItems, W-48).rows.length*20 + 14;
+    }
 
     var headerH = 22 + titleH + subtitleH + 16;
     var footerGap = noteLines.length ? 18 : 10;
@@ -1927,12 +2072,36 @@
     var plotG = el('g', {}, svg);
     var plotPoints = [];
     var freeAnchors = {};
-    var manyBarCats = chartType==='bar' && !state.barHorizontal && sd && sd.categories.length>10;
-    var manyWfCats = chartType==='waterfall' && wd && wd.length>10;
-    var manyComboCats = chartType==='combo' && cd && cd.categories.length>10;
-    var PL = 56, PR = 24, PT_ = 10, PB = (manyBarCats || manyWfCats || manyComboCats) ? 70 : 30;
+    var hasRightAxisMirror = (chartType==='line' || (chartType==='bar' && !state.barHorizontal)) && state.style.showRightAxis;
+    var PL = 56, PR = 24, PT_ = 10;
     if(chartType==='line' && state.style.showLabels) PR = 92;
-    else if((chartType==='line' || (chartType==='bar' && !state.barHorizontal)) && state.style.showRightAxis) PR = Math.max(PR, 48);
+    else if(hasRightAxisMirror) PR = Math.max(PR, 48);
+    if(state.style.yAxisLabel) PL += 18;
+    if(state.style.yAxisLabelRight && hasRightAxisMirror) PR += 18;
+
+    // Same "will this rotate?" question drawXTicks/drawCategoryTicks answer at render
+    // time, asked here first so the bottom margin (PB) is sized to fit whatever they're
+    // about to draw — a fixed per-chart-type guess (only bar got extra room before) is
+    // what let waterfall/combo/line category labels run into each other or off-canvas
+    // whenever the data had more or longer categories than that guess assumed.
+    var availW0 = W-PL-PR;
+    var rotateCats = null;
+    if(chartType==='bar' && !state.barHorizontal && sd) rotateCats = {cats:sd.categories, band:{inner:0.28,outer:0.14}};
+    else if(chartType==='waterfall' && wd) rotateCats = {cats:wd.map(function(d){return d.category;}), band:{inner:0.32,outer:0.14}};
+    else if(chartType==='combo' && cd) rotateCats = {cats:cd.categories, band:{inner:0.35,outer:0.16}};
+    else if(chartType==='line' && sd){
+      var isMonthlyCats = sd.categories.length>0 && sd.categories.every(function(c){return /^\d{4}-\d{2}$/.test(c);});
+      if(!isMonthlyCats) rotateCats = {cats:sd.categories, point:true};
+    }
+    var needsRotate = false;
+    if(rotateCats){
+      var step;
+      if(rotateCats.point){ step = d3.scalePoint().domain(rotateCats.cats).range([0,availW0]).padding(0.5).step(); }
+      else { step = d3.scaleBand().domain(rotateCats.cats).range([0,availW0]).paddingInner(rotateCats.band.inner).paddingOuter(rotateCats.band.outer).bandwidth(); }
+      needsRotate = categoriesNeedRotate(rotateCats.cats, step);
+    }
+    var PB = needsRotate ? 70 : 30;
+    if(state.style.xAxisLabel) PB += 20;
 
     if(chartType==='bar'){ plotPoints = drawBar(plotG, sd, { x:PL, y:plotTop+PT_, w:W-PL-PR, h:plotH-PT_-PB, t:t, interactive:interactive }); }
     else if(chartType==='line'){
@@ -1951,13 +2120,7 @@
     if(chartType==='heatmap'){
       var allVals=[]; sd.series.forEach(function(s){ s.values.forEach(function(v){allVals.push(v.value);}); });
       drawSequentialKey(svg, d3.min(allVals)||0, d3.max(allVals)||1, W/2, legendY+16, t);
-    } else if(needsLegend){
-      var legendItems;
-      if(chartType==='pie') legendItems = pd.map(function(s){return {name:s.category, color:s.color};});
-      else if(chartType==='scatter') legendItems = scd.groups.map(function(g,i){return {name:g, color: cats()[i%8]};});
-      else if(chartType==='combo') legendItems = cd.series.map(function(s,i){return {name:s.name+(i===0?' (bars)':' (line)'), color:s.color};});
-      else if(chartType==='range') legendItems = [{name:state.mapping.rangeA+' (from)', color:t.muted},{name:state.mapping.rangeB+' (to)', color:t.navy}];
-      else legendItems = sd.series.map(function(s){return {name:s.name, color:s.color};});
+    } else if(needsLegend && legendItems && legendItems.length){
       drawLegend(svg, legendItems, W/2, legendY+10, W-48, t);
     }
 
@@ -1973,6 +2136,24 @@
       textEl(svg, sx, sourceY, 'Created with Chart Studio', {'font-size':11.5, fill:t.accent||t.navy});
     }
 
+    // Scatter and indexed-combo already draw their own x/y titles inline (scatter
+    // defaults to the mapped column names, combo always shows its "Index..." caption),
+    // both now reading state.style.xAxisLabel/yAxisLabel themselves when set - drawing
+    // them again here would duplicate the same text.
+    if(chartType!=='pie' && chartType!=='scatter' && chartType!=='combo'){
+      if(state.style.xAxisLabel){
+        textEl(svg, PL+(W-PL-PR)/2, plotBottom-6, state.style.xAxisLabel, {'font-size':12, fill:t.inkSoft, 'text-anchor':'middle', 'font-weight':600});
+      }
+      if(state.style.yAxisLabel){
+        var ylx=14, yly=plotTop+PT_+(plotH-PT_-PB)/2;
+        textEl(svg, ylx, yly, state.style.yAxisLabel, {'font-size':12, fill:t.inkSoft, 'text-anchor':'middle', 'font-weight':600, transform:'rotate(-90 '+ylx+' '+yly+')'});
+      }
+      if(state.style.yAxisLabelRight && hasRightAxisMirror){
+        var yrx=W-14, yry=plotTop+PT_+(plotH-PT_-PB)/2;
+        textEl(svg, yrx, yry, state.style.yAxisLabelRight, {'font-size':12, fill:t.inkSoft, 'text-anchor':'middle', 'font-weight':600, transform:'rotate(90 '+yrx+' '+yry+')'});
+      }
+    }
+
     drawAnnotations(svg, plotG, plotPoints, interactive, freeAnchors);
     if(interactive){ wireInteractivity(container, svg, plotPoints); }
     return svg;
@@ -1986,7 +2167,10 @@
     textEl(svg, x0+totalW+8, y+4, fmtNum(maxV), {'font-size':11, fill:t.muted, 'text-anchor':'start'});
   }
 
-  function drawLegend(svg, items, cx, y, maxWidth, t){
+  // Extracted so buildChart can ask "how many rows will this legend need?" before it
+  // finalizes layout height, instead of assuming a fixed one row (which is what let a
+  // wrapped 3-row legend overlap the footer note whenever a chart had many series/slices).
+  function computeLegendRows(items, maxWidth){
     var fontSize = 12.5, gap = 18, swatch = 11;
     var widths = items.map(function(it){ return swatch+6+measureWidth(it.name, fontSize, 500); });
     var rows = []; var cur = []; var curW = 0;
@@ -1996,6 +2180,12 @@
       cur.push(it); curW += widths[i] + (cur.length>1? gap:0);
     });
     if(cur.length) rows.push(cur);
+    return { rows: rows, widths: widths };
+  }
+  function drawLegend(svg, items, cx, y, maxWidth, t){
+    var fontSize = 12.5, gap = 18, swatch = 11;
+    var computed = computeLegendRows(items, maxWidth);
+    var rows = computed.rows, widths = computed.widths;
     rows.forEach(function(row, ri){
       var rowWidth = row.reduce(function(a,it,i){ return a + widths[items.indexOf(it)] + (i? gap:0); }, 0);
       var x = cx - rowWidth/2;
@@ -2073,24 +2263,37 @@
   // Shared x-axis category label renderer for band-scale charts (bar/waterfall/combo):
   // rotates labels once there are too many categories or they're too wide for their
   // band, and thins them further if even rotated they'd still crowd each other.
-  function drawCategoryTicks(g, categories, catScale, o, t){
-    var catCount = categories.length;
-    var bandW0 = catScale.bandwidth();
+  // Pure predicate (no drawing) shared by the pre-layout pass in buildChart (which needs
+  // to know the answer before it can size PB) and the actual renderer below — same
+  // formula both times, so the reserved margin always matches what gets drawn into it.
+  function categoriesNeedRotate(categories, step){
+    if(!categories || categories.length<2) return false;
     var estLabelW = d3.max(categories, function(c){ return measureWidth(String(c), 11.5, 400); }) || 0;
-    var needsRotate = catCount>10 || estLabelW > bandW0*1.4;
+    return categories.length>10 || estLabelW > step*1.4;
+  }
+  // Generic x-axis category-label renderer, decoupled from any particular d3 scale type:
+  // callers hand in a position function and the pixel spacing between adjacent ticks
+  // (band-scale's bandwidth(), or point-scale's step()). Rotates once there are too many
+  // categories or they're too wide for their slot, and thins further if even rotated
+  // they'd still crowd each other.
+  function drawXTicks(g, categories, posFn, step, o, t){
+    var needsRotate = categoriesNeedRotate(categories, step);
     var tickStride = 1;
-    if(needsRotate && bandW0*tickStride < 16){ tickStride = Math.ceil(16/Math.max(bandW0,1)); }
+    if(needsRotate && step*tickStride < 16){ tickStride = Math.ceil(16/Math.max(step,1)); }
     categories.forEach(function(cat, ci){
       if(ci % tickStride !== 0) return;
-      var band = catScale(cat), bw = catScale.bandwidth();
+      var bx = posFn(cat);
       if(needsRotate){
-        var bx=o.x+band+bw/2, by=o.y+o.h+12;
+        var by=o.y+o.h+12;
         textEl(g, bx, by, cat, {'font-size':10.5, fill:t.inkSoft, 'text-anchor':'end', transform:'rotate(-40 '+bx+' '+by+')'});
       } else {
-        textEl(g, o.x+band+bw/2, o.y+o.h+16, cat, {'font-size':11.5, fill:t.inkSoft, 'text-anchor':'middle'});
+        textEl(g, bx, o.y+o.h+16, cat, {'font-size':11.5, fill:t.inkSoft, 'text-anchor':'middle'});
       }
     });
     return needsRotate;
+  }
+  function drawCategoryTicks(g, categories, catScale, o, t){
+    return drawXTicks(g, categories, function(cat){ return o.x+catScale(cat)+catScale.bandwidth()/2; }, catScale.bandwidth(), o, t);
   }
   function drawBar(g, sd, o){
     var points = [];
@@ -2211,33 +2414,37 @@
       if(state.style.showRightAxis){ textEl(g, o.x+o.w+8, gy+3, tickLabel(tk,lineTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'start'}); }
     });
 
-    // Dense axes (e.g. monthly data) get a handful of evenly spaced ticks instead of
-    // one label per category; monthly-shaped categories snap to January of even years.
+    // Monthly-shaped categories get their own dense-axis treatment (snap to January of
+    // even years, fold to quarters) since that reads better than rotation for a long
+    // time series. Anything else (plain category names) shares the same rotate-and-thin
+    // renderer as bar/waterfall/combo, so a categorical line chart never silently drops
+    // most of its x-axis the way a fixed stride used to.
     var catCount = sd.categories.length;
     var isMonthly = catCount>0 && sd.categories.every(function(c){ return /^\d{4}-\d{2}$/.test(c); });
-    var tickIdxs = [];
-    if(catCount<=14){
-      for(var i=0;i<catCount;i++) tickIdxs.push(i);
-    } else if(isMonthly){
-      sd.categories.forEach(function(cat,i){
-        if(parseInt(cat.slice(5,7),10)===1 && parseInt(cat.slice(0,4),10)%2===0) tickIdxs.push(i);
-      });
-      if(!tickIdxs.length){
-        var stride0 = Math.max(1, Math.ceil(catCount/7));
-        for(var j=0;j<catCount;j+=stride0) tickIdxs.push(j);
+    if(isMonthly){
+      var tickIdxs = [];
+      if(catCount<=14){
+        for(var i=0;i<catCount;i++) tickIdxs.push(i);
+      } else {
+        sd.categories.forEach(function(cat,i){
+          if(parseInt(cat.slice(5,7),10)===1 && parseInt(cat.slice(0,4),10)%2===0) tickIdxs.push(i);
+        });
+        if(!tickIdxs.length){
+          var stride0 = Math.max(1, Math.ceil(catCount/7));
+          for(var j=0;j<catCount;j+=stride0) tickIdxs.push(j);
+        }
       }
+      // Quarter-folding only makes sense once ticks have been thinned to more than a
+      // month apart - at full monthly resolution (catCount<=14) it turned 3 neighboring
+      // months into 3 duplicate "20XX Q1" labels side by side.
+      tickIdxs.forEach(function(i){
+        var cat = sd.categories[i];
+        var label = catCount>14 ? monthToQuarterLabel(cat) : cat;
+        textEl(g, o.x+x(cat), o.y+o.h+16, label, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'middle'});
+      });
     } else {
-      var stride = Math.max(1, Math.ceil(catCount/7));
-      for(var k=0;k<catCount;k+=stride) tickIdxs.push(k);
+      drawXTicks(g, sd.categories, function(cat){ return o.x+x(cat); }, x.step(), o, o.t);
     }
-    // Quarter-folding only makes sense once ticks have been thinned to more than a
-    // month apart - at full monthly resolution (catCount<=14) it turned 3 neighboring
-    // months into 3 duplicate "20XX Q1" labels side by side.
-    tickIdxs.forEach(function(i){
-      var cat = sd.categories[i];
-      var label = catCount>14 ? monthToQuarterLabel(cat) : cat;
-      textEl(g, o.x+x(cat), o.y+o.h+16, label, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'middle'});
-    });
     el('line', {x1:o.x,y1:o.y+o.h,x2:o.x+o.w,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
 
     // Many real-world monthly series aren't hand-smoothed — straight segments between
@@ -2393,9 +2600,9 @@
     });
     el('line', {x1:o.x,y1:o.y+o.h,x2:o.x+o.w,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
     el('line', {x1:o.x,y1:o.y,x2:o.x,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
-    textEl(g, o.x+o.w/2, o.y+o.h+30, state.mapping.x||'', {'font-size':11.5, fill:o.t.inkSoft,'text-anchor':'middle'});
+    textEl(g, o.x+o.w/2, o.y+o.h+30, state.style.xAxisLabel || state.mapping.x||'', {'font-size':11.5, fill:o.t.inkSoft,'text-anchor':'middle'});
     var yLabel = el('text', {x:14, y:o.y+o.h/2, 'font-family':SANS, 'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'middle', transform:'rotate(-90 14 '+(o.y+o.h/2)+')'}, g);
-    yLabel.textContent = state.mapping.y||'';
+    yLabel.textContent = state.style.yAxisLabel || state.mapping.y||'';
 
     scd.points.forEach(function(p){
       var cx=o.x+x(p.x), cy=o.y+y(p.y);
@@ -2513,7 +2720,8 @@
     el('line', {x1:o.x,y1:idx100Y,x2:o.x+o.w,y2:idx100Y, stroke:o.t.muted,'stroke-width':1,'stroke-dasharray':'3,3'}, g);
     textEl(g, o.x+o.w, idx100Y-5, 'Base = 100', {'font-size':10, fill:o.t.muted, 'text-anchor':'end'});
     var yLabelText = el('text', {x:14, y:o.y+o.h/2, 'font-family':SANS, 'font-size':11, fill:o.t.inkSoft, 'text-anchor':'middle', transform:'rotate(-90 14 '+(o.y+o.h/2)+')'}, g);
-    yLabelText.textContent = 'Index (first period = 100)';
+    yLabelText.textContent = state.style.yAxisLabel || 'Index (first period = 100)';
+    if(state.style.xAxisLabel){ textEl(g, o.x+o.w/2, o.y+o.h+30, state.style.xAxisLabel, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'middle'}); }
 
     var barSeries = cd.series[0];
     var lineSeriesArr = cd.series.slice(1);
