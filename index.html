@@ -447,7 +447,7 @@
             <div class="field"><label for="sourceInput">Source</label><input type="text" id="sourceInput" maxlength="90"></div>
             <div class="field">
               <label for="noteInput">Note</label>
-              <textarea id="noteInput" maxlength="1000"></textarea>
+              <textarea id="noteInput" maxlength="500"></textarea>
               <button class="btn small ghost" id="genInsightBtn" type="button" style="align-self:flex-start;">&#10024; Generate insight summary</button>
               <div class="fine" id="insightHint"></div>
             </div>
@@ -922,6 +922,27 @@
     state.mapping.rangeB = nums[1] || nums[0] || null;
     state.mapping.dateGroup = 'none';
   }
+  // Deleting a column left it dangling in state.mapping (series[] especially), so a
+  // removed column kept rendering as a phantom zero-value series and legend entry -
+  // r[deletedName] was just undefined -> toNumber(undefined) -> NaN -> forced to 0.
+  // Only mapping fields that actually pointed at the deleted column are touched here;
+  // everything else the user picked stays exactly as they left it.
+  function purgeColumnFromMapping(colName){
+    var m = state.mapping;
+    m.series = m.series.filter(function(s){ return s!==colName; });
+    ['category','x','y','size','colorBy','value','rangeA','rangeB'].forEach(function(key){
+      if(m[key]===colName) m[key] = null;
+    });
+    var nums = numericColumns().map(function(c){return c.name;});
+    var texts = textColumns().map(function(c){return c.name;});
+    if(!m.category) m.category = texts[0] || (state.columns[0] && state.columns[0].name) || null;
+    if(!m.value) m.value = nums[0] || null;
+    if(!m.x) m.x = nums[0] || m.category;
+    if(!m.y) m.y = nums[1] || nums[0] || null;
+    if(!m.rangeA) m.rangeA = nums[0] || null;
+    if(!m.rangeB) m.rangeB = nums[1] || nums[0] || null;
+    if(!m.series.length) m.series = nums.slice(0,8);
+  }
 
   /* ============ recommendation engine ============ */
   function looksTimeLike(colName, values){
@@ -1068,15 +1089,6 @@
     var level = share>=0.7 ? 'highly concentrated' : share>=0.5 ? 'moderately concentrated' : 'fairly evenly spread';
     return 'The top '+topN+' of '+items.length+' '+noun+' ('+names.join(', ')+(topN>3?' and others':'')+') account for '+Math.round(share*100)+'% of the total — the distribution is '+level+'.';
   }
-  // Spread of values around the mean, in the axis unit so it reads naturally next to the chart.
-  function variabilityNarrative(items, unit){
-    if(!items || items.length<3) return null;
-    var ms = meanStd(items.map(function(d){return d.value;}));
-    var cv = ms.mean ? ms.std/Math.abs(ms.mean) : 0;
-    var level = cv>=0.6 ? 'highly variable' : cv>=0.3 ? 'moderately variable' : 'fairly consistent';
-    var suffix = unit==='%' ? 'pp' : '';
-    return 'Values are '+level+' from one to the next (average '+fmtVal(ms.mean)+suffix+', typical spread of ±'+fmtVal(ms.std)+suffix+').';
-  }
   // Categories sitting well outside the pack (>1.5 std from the mean) — the ones a
   // reader would otherwise have to hunt for by eye.
   function outlierNarrative(items){
@@ -1103,24 +1115,6 @@
       if(d>0) ups++; else if(d<0) downs++;
     }
     return { maxJump:maxJump, ups:ups, downs:downs };
-  }
-  // Whole-dataset framing, independent of whatever chart/mapping is currently selected —
-  // the "scope of the story" the reader is about to get a slice of.
-  function datasetOverview(){
-    var n = state.rows.length;
-    var colCount = state.columns.length;
-    var nums = numericColumns().map(function(c){return c.name;});
-    var texts = textColumns().map(function(c){return c.name;});
-    var parts = [n+' row'+(n===1?'':'s')+' across '+colCount+' column'+(colCount===1?'':'s')];
-    if(texts.length) parts.push(texts[0]+' as the primary category'+(texts.length>1?' (+'+(texts.length-1)+' more text column'+(texts.length-1===1?'':'s')+')':''));
-    if(nums.length) parts.push(nums.slice(0,4).join(', ')+(nums.length>4?', +'+(nums.length-4)+' more':'')+' as measure'+(nums.length===1?'':'s'));
-    var catCol = state.mapping.category;
-    if(catCol && typeof categoryIsDateLike==='function' && categoryIsDateLike()){
-      var rows = typeof getEffectiveRows==='function' ? getEffectiveRows() : state.rows;
-      var seq = rows.map(function(r){return String(r[catCol]);}).filter(Boolean);
-      if(seq.length>1) parts.push('spanning '+seq[0]+' to '+seq[seq.length-1]);
-    }
-    return parts.join(' — ')+'.';
   }
   function summarizeLine(){
     var sd = seriesData();
@@ -1266,16 +1260,11 @@
     }
     return out.join(' ');
   }
-  // Four layers, read in order like an analyst would: what the dataset actually is
-  // (scope), what the chart's own shape says (headline), what the numbers underneath
-  // it look like once you step back (concentration / spread / outliers), then what the
-  // reader themselves has already flagged (highlights & notes). Each layer degrades
-  // gracefully — a chart type with no deep-analysis mapping just skips that paragraph
-  // instead of leaving a gap.
+  // A highlight reel, not a report: the chart's own headline fact, at most one "beyond
+  // the obvious" number worth a second look (an outlier beats a bland "spread is even"
+  // concentration line, so only the more decision-relevant one survives), then whatever
+  // the reader has already flagged by hand. One tight paragraph, not a wall of stats.
   function generateInsightSummary(){
-    var paragraphs = [];
-    paragraphs.push(datasetOverview());
-
     var lines;
     if(state.chartType==='line') lines = summarizeLine();
     else if(state.chartType==='bar') lines = summarizeBar();
@@ -1286,21 +1275,20 @@
     else if(state.chartType==='heatmap') lines = summarizeHeatmap();
     else if(state.chartType==='range') lines = summarizeRangePlot();
     else lines = [];
-    if(lines.length) paragraphs.push(lines.join(' '));
+    var parts = lines.slice();
 
     var items = toItems();
     var noun = state.mapping.category ? String(state.mapping.category).toLowerCase()+' entries' : 'categories';
-    var deep = [];
-    var conc = concentrationNarrative(items, noun); if(conc) deep.push(conc);
-    var varb = variabilityNarrative(items, state.style.unit); if(varb) deep.push(varb);
-    var outl = outlierNarrative(items); if(outl) deep.push(outl);
-    if(deep.length) paragraphs.push(deep.join(' '));
+    var outl = outlierNarrative(items);
+    var conc = concentrationNarrative(items, noun);
+    if(outl) parts.push(outl);
+    else if(conc && !/fairly evenly spread/.test(conc)) parts.push(conc);
 
     var hi = summarizeHighlights();
-    if(hi) paragraphs.push(hi);
+    if(hi) parts.push(hi);
 
-    var text = paragraphs.join('\n\n');
-    if(text.length>900) text = text.slice(0,897).replace(/\s+\S*$/,'') + '…';
+    var text = parts.join(' ');
+    if(text.length>380) text = text.slice(0,377).replace(/\s+\S*$/,'') + '…';
     return text;
   }
 
@@ -1461,7 +1449,7 @@
       pill.addEventListener('click', function(){ col.type = col.type==='number' ? 'text' : 'number'; renderGrid(); renderRecommendations(); });
       var actions = document.createElement('div'); actions.className='col-actions';
       var del = document.createElement('button'); del.type='button'; del.textContent='✕'; del.title='Delete column';
-      del.addEventListener('click', function(){ state.columns.splice(ci,1); state.rows.forEach(function(r){ delete r[col.name]; }); renderGrid(); renderRecommendations(); });
+      del.addEventListener('click', function(){ state.columns.splice(ci,1); state.rows.forEach(function(r){ delete r[col.name]; }); purgeColumnFromMapping(col.name); renderGrid(); renderRecommendations(); });
       actions.appendChild(del);
       th.appendChild(nameEl); th.appendChild(pill); th.appendChild(actions);
       htr.appendChild(th);
