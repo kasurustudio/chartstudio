@@ -780,7 +780,7 @@
     lineArea: false,
     pieDonut: true,
     maxSeries: 8,
-    mapping: { category:null, series:[], x:null, y:null, size:null, colorBy:null, value:null, rangeA:null, rangeB:null, dateGroup:'none' },
+    mapping: { category:null, series:[], x:[], y:[], size:null, colorBy:null, value:[], rangeA:[], rangeB:[], dateGroup:'none' },
     style: Object.assign({ showLegend:true, showLabels:true, showRightAxis:false }, SAMPLE_STYLE),
     highlights: {},
     annotations: [],
@@ -799,6 +799,21 @@
     if (v == null || v === '') return NaN;
     var n = parseFloat(String(v).replace(/,/g,''));
     return n;
+  }
+  // A mapping field like "Value" or "Y axis" can now name more than one column - this
+  // sums whichever of them are actually numeric for a given row. Accepts a bare string
+  // too, so any leftover single-column reference still works.
+  function combinedValue(row, colsOrCol){
+    var cols = Array.isArray(colsOrCol) ? colsOrCol : (colsOrCol ? [colsOrCol] : []);
+    var sum = 0;
+    cols.forEach(function(c){
+      var v = toNumber(row[c]);
+      if(Number.isFinite(v)) sum += v;
+    });
+    return sum;
+  }
+  function mapLabel(colsOrCol){
+    return Array.isArray(colsOrCol) ? colsOrCol.join(' + ') : (colsOrCol||'');
   }
   // Strict, whole-string check for type inference — unlike toNumber() (used once a
   // column is already known numeric), this must reject date-like text such as
@@ -918,13 +933,17 @@
     var cat = texts[0] || (state.columns[0] && state.columns[0].name);
     state.mapping.category = cat;
     state.mapping.series = nums.slice(0,8);
-    state.mapping.value = nums[0];
-    state.mapping.x = nums[0] || cat;
-    state.mapping.y = nums[1] || nums[0];
+    // value/x/y/rangeA/rangeB each hold an array of column names now - a chart that only
+    // ever needed one measure still works the same (an array of one), but the reader can
+    // add more and they're summed per row (combinedValue), e.g. a Pie slice or a scatter's
+    // Y position built from several columns at once instead of just a single pick.
+    state.mapping.value = nums[0] ? [nums[0]] : [];
+    state.mapping.x = nums[0] ? [nums[0]] : (cat ? [cat] : []);
+    state.mapping.y = (nums[1]||nums[0]) ? [nums[1]||nums[0]] : [];
     state.mapping.size = nums[2] || null;
     state.mapping.colorBy = texts[0] || null;
-    state.mapping.rangeA = nums[0] || null;
-    state.mapping.rangeB = nums[1] || nums[0] || null;
+    state.mapping.rangeA = nums[0] ? [nums[0]] : [];
+    state.mapping.rangeB = (nums[1]||nums[0]) ? [nums[1]||nums[0]] : [];
     state.mapping.dateGroup = 'none';
   }
   // Deleting a column left it dangling in state.mapping (series[] especially), so a
@@ -935,17 +954,20 @@
   function purgeColumnFromMapping(colName){
     var m = state.mapping;
     m.series = m.series.filter(function(s){ return s!==colName; });
-    ['category','x','y','size','colorBy','value','rangeA','rangeB'].forEach(function(key){
+    ['x','y','value','rangeA','rangeB'].forEach(function(key){
+      m[key] = (m[key]||[]).filter(function(v){ return v!==colName; });
+    });
+    ['category','size','colorBy'].forEach(function(key){
       if(m[key]===colName) m[key] = null;
     });
     var nums = numericColumns().map(function(c){return c.name;});
     var texts = textColumns().map(function(c){return c.name;});
     if(!m.category) m.category = texts[0] || (state.columns[0] && state.columns[0].name) || null;
-    if(!m.value) m.value = nums[0] || null;
-    if(!m.x) m.x = nums[0] || m.category;
-    if(!m.y) m.y = nums[1] || nums[0] || null;
-    if(!m.rangeA) m.rangeA = nums[0] || null;
-    if(!m.rangeB) m.rangeB = nums[1] || nums[0] || null;
+    if(!m.value.length) m.value = nums[0] ? [nums[0]] : [];
+    if(!m.x.length) m.x = nums[0] ? [nums[0]] : (m.category ? [m.category] : []);
+    if(!m.y.length) m.y = (nums[1]||nums[0]) ? [nums[1]||nums[0]] : [];
+    if(!m.rangeA.length) m.rangeA = nums[0] ? [nums[0]] : [];
+    if(!m.rangeB.length) m.rangeB = (nums[1]||nums[0]) ? [nums[1]||nums[0]] : [];
     if(!m.series.length) m.series = nums.slice(0,8);
   }
 
@@ -983,12 +1005,12 @@
     if(nums.length>=1 && catCol && cardinality>=2 && cardinality<=7){
       out.push({ type:'pie', score: 3 - (cardinality>5?1:0),
         reason: cardinality+' categories share a whole — a pie shows each slice’s part of the total.',
-        apply:function(){ state.chartType='pie'; state.mapping.category=catCol; state.mapping.value=nums[0]; } });
+        apply:function(){ state.chartType='pie'; state.mapping.category=catCol; state.mapping.value=[nums[0]]; } });
     }
     if(nums.length>=2){
       out.push({ type:'scatter', score: 2 + (state.rows.length>=15?1:0),
         reason:'See whether '+nums[0]+' and '+nums[1]+' move together across your '+state.rows.length+' rows.',
-        apply:function(){ state.chartType='scatter'; state.mapping.x=nums[0]; state.mapping.y=nums[1]; } });
+        apply:function(){ state.chartType='scatter'; state.mapping.x=[nums[0]]; state.mapping.y=[nums[1]]; } });
     }
     if(nums.length>=1 && catCol){
       var vals = state.rows.map(function(r){return toNumber(r[nums[0]]);});
@@ -996,7 +1018,7 @@
       if(hasPos && hasNeg && cardinality<=14){
         out.push({ type:'waterfall', score: 3,
           reason: nums[0]+' has both increases and decreases — a waterfall bridges each step to the total.',
-          apply:function(){ state.chartType='waterfall'; state.mapping.category=catCol; state.mapping.value=nums[0]; } });
+          apply:function(){ state.chartType='waterfall'; state.mapping.category=catCol; state.mapping.value=[nums[0]]; } });
       }
     }
     if(nums.length>=2 && catCol){
@@ -1268,7 +1290,7 @@
     if(r==null) return ['Not enough points to measure a relationship.'];
     var strength = Math.abs(r)>=0.7?'a strong':Math.abs(r)>=0.4?'a moderate':'a weak';
     var direction = r<0 ? 'negative':'positive';
-    return ['Across '+scd.points.length+' points, '+state.mapping.x+' and '+state.mapping.y+' show '+strength+' '+direction+' relationship (r='+(Math.round(r*100)/100)+').'];
+    return ['Across '+scd.points.length+' points, '+mapLabel(state.mapping.x)+' and '+mapLabel(state.mapping.y)+' show '+strength+' '+direction+' relationship (r='+(Math.round(r*100)/100)+').'];
   }
   function summarizeWaterfall(){
     var wd = waterfallData();
@@ -1702,6 +1724,32 @@
       if(note){ var fn=document.createElement('div'); fn.className='fine'; fn.textContent=note; f2.appendChild(fn); }
       wrap.appendChild(f2);
     }
+    // Checklist version of selectField - lets a field like "Value" or "Y axis" name more
+    // than one column, summed per row (combinedValue). Used wherever a chart previously
+    // forced a single-column pick for a measure that has no reason to stay single.
+    function multiSelectField(label, key, options, note){
+      var f = document.createElement('div'); f.className='field';
+      var l = document.createElement('label'); l.textContent=label; f.appendChild(l);
+      var cl = document.createElement('div'); cl.className='checklist';
+      options.forEach(function(n){
+        var lab = document.createElement('label');
+        var cb = document.createElement('input'); cb.type='checkbox';
+        cb.checked = state.mapping[key].indexOf(n)>-1;
+        cb.addEventListener('change', function(){
+          if(cb.checked){ if(state.mapping[key].indexOf(n)<0) state.mapping[key].push(n); }
+          else{ state.mapping[key] = state.mapping[key].filter(function(x){return x!==n;}); }
+          renderVisualize(); renderPublish();
+        });
+        var txt = document.createElement('span'); txt.textContent=n;
+        lab.appendChild(cb); lab.appendChild(txt);
+        cl.appendChild(lab);
+      });
+      f.appendChild(cl);
+      var fn = document.createElement('div'); fn.className='fine';
+      fn.textContent = note || (options.length>1 ? 'Selecting more than one sums them.' : '');
+      if(fn.textContent) f.appendChild(fn);
+      wrap.appendChild(f);
+    }
 
     var h = document.createElement('h4'); h.textContent='Map your data'; h.style.marginTop='4px'; wrap.appendChild(h);
 
@@ -1713,11 +1761,11 @@
     if(state.chartType==='pie'){
       selectField('Category', 'category', texts.length?texts:allCols, state.mapping.category);
       dateGroupField();
-      selectField('Value', 'value', nums, state.mapping.value);
+      multiSelectField('Value', 'value', nums);
     }
     if(state.chartType==='scatter'){
-      selectField('X axis', 'x', nums, state.mapping.x);
-      selectField('Y axis', 'y', nums, state.mapping.y);
+      multiSelectField('X axis', 'x', nums);
+      multiSelectField('Y axis', 'y', nums);
       var f3=document.createElement('div'); f3.className='field';
       var l3=document.createElement('label'); l3.textContent='Bubble size (optional)'; f3.appendChild(l3);
       var s3=document.createElement('select');
@@ -1736,7 +1784,7 @@
     if(state.chartType==='waterfall'){
       selectField('Step (category)', 'category', texts.length?texts:allCols, state.mapping.category);
       dateGroupField();
-      selectField('Change in value', 'value', nums, state.mapping.value, 'Positive values step up, negative values step down.');
+      multiSelectField('Change in value', 'value', nums, 'Positive values step up, negative values step down.'+(nums.length>1?' Selecting more than one sums them.':''));
     }
     if(state.chartType==='combo'){
       selectField('Category axis', 'category', texts.length?texts:allCols, state.mapping.category);
@@ -1751,8 +1799,8 @@
     if(state.chartType==='range'){
       selectField('Category', 'category', texts.length?texts:allCols, state.mapping.category);
       dateGroupField();
-      selectField('From value', 'rangeA', nums, state.mapping.rangeA);
-      selectField('To value', 'rangeB', nums, state.mapping.rangeB);
+      multiSelectField('From value', 'rangeA', nums);
+      multiSelectField('To value', 'rangeB', nums);
     }
   }
   function addToggle(wrap, label, value, onChange){
@@ -1978,10 +2026,10 @@
     return sd;
   }
   function waterfallData(){
-    var catCol = state.mapping.category, valCol = state.mapping.value;
+    var catCol = state.mapping.category, valCols = state.mapping.value;
     var acc = 0;
     var items = getEffectiveRows().map(function(r){
-      var v = toNumber(r[valCol]); if(!Number.isFinite(v)) v=0;
+      var v = combinedValue(r, valCols);
       var start = acc; acc += v;
       return { category:String(r[catCol]), value:v, start:start, end:acc, key:'wf__'+String(r[catCol]) };
     });
@@ -1989,31 +2037,31 @@
     return items;
   }
   function pieData(){
-    var catCol = state.mapping.category, valCol = state.mapping.value;
+    var catCol = state.mapping.category, valCols = state.mapping.value;
     var palette = cats();
     return getEffectiveRows().map(function(r,i){
-      var v = toNumber(r[valCol]); if(!Number.isFinite(v)) v=0;
+      var v = combinedValue(r, valCols);
       return { category:String(r[catCol]), value:v, key:'slice__'+String(r[catCol]), color: palette[i % palette.length] };
     });
   }
   function scatterData(){
-    var xCol=state.mapping.x, yCol=state.mapping.y, sizeCol=state.mapping.size, colorCol=state.mapping.colorBy;
+    var xCols=state.mapping.x, yCols=state.mapping.y, sizeCol=state.mapping.size, colorCol=state.mapping.colorBy;
     var palette = cats();
     var groups = {};
     var pts = state.rows.map(function(r,i){
       var g = colorCol ? String(r[colorCol]) : '__all__';
       if(groups[g]===undefined) groups[g]=Object.keys(groups).length;
-      return { x: toNumber(r[xCol]) || 0, y: toNumber(r[yCol]) || 0, size: sizeCol ? (toNumber(r[sizeCol])||0) : null, group: g, key:'pt__'+i };
+      return { x: combinedValue(r, xCols), y: combinedValue(r, yCols), size: sizeCol ? (toNumber(r[sizeCol])||0) : null, group: g, key:'pt__'+i };
     });
     var groupNames = Object.keys(groups);
     pts.forEach(function(p){ p.color = palette[groups[p.group] % palette.length]; });
     return { points: pts, groups: groupNames };
   }
   function rangeData(){
-    var catCol = state.mapping.category, aCol = state.mapping.rangeA, bCol = state.mapping.rangeB;
+    var catCol = state.mapping.category, aCols = state.mapping.rangeA, bCols = state.mapping.rangeB;
     return getEffectiveRows().map(function(r){
-      var a = toNumber(r[aCol]); if(!Number.isFinite(a)) a=0;
-      var b = toNumber(r[bCol]); if(!Number.isFinite(b)) b=0;
+      var a = combinedValue(r, aCols);
+      var b = combinedValue(r, bCols);
       return { category:String(r[catCol]), a:a, b:b, key:'rg__'+String(r[catCol]) };
     });
   }
@@ -2120,7 +2168,7 @@
       if(chartType==='pie') legendItems = pd.map(function(s){return {name:s.category, color:s.color};});
       else if(chartType==='scatter') legendItems = scd.groups.map(function(g,i){return {name:g, color: cats()[i%8]};});
       else if(chartType==='combo') legendItems = cd.series.map(function(s,i){return {name:s.name+(i===0?' (bars)':' (line)'), color:s.color};});
-      else if(chartType==='range') legendItems = [{name:state.mapping.rangeA+' (from)', color:t.muted},{name:state.mapping.rangeB+' (to)', color:t.navy}];
+      else if(chartType==='range') legendItems = [{name:mapLabel(state.mapping.rangeA)+' (from)', color:t.muted},{name:mapLabel(state.mapping.rangeB)+' (to)', color:t.navy}];
       else legendItems = sd.series.map(function(s){return {name:s.name, color:s.color};});
     }
     if(chartType==='heatmap') legendH = 40;
@@ -2352,7 +2400,11 @@
   function drawXTicks(g, categories, posFn, step, o, t){
     var needsRotate = categoriesNeedRotate(categories, step);
     var tickStride = 1;
-    if(needsRotate && step*tickStride < 16){ tickStride = Math.ceil(16/Math.max(step,1)); }
+    // A -40deg label's actual horizontal footprint is much narrower than its full text
+    // width (it runs diagonally), so 16px of anchor spacing was thinning out labels that
+    // would never really have collided - 9px is close to the true minimum before rotated
+    // text starts overlapping its neighbor.
+    if(needsRotate && step*tickStride < 9){ tickStride = Math.ceil(9/Math.max(step,1)); }
     categories.forEach(function(cat, ci){
       if(ci % tickStride !== 0) return;
       var bx = posFn(cat);
@@ -2673,9 +2725,9 @@
     });
     el('line', {x1:o.x,y1:o.y+o.h,x2:o.x+o.w,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
     el('line', {x1:o.x,y1:o.y,x2:o.x,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
-    textEl(g, o.x+o.w/2, o.y+o.h+30, state.style.xAxisLabel || state.mapping.x||'', {'font-size':11.5, fill:o.t.inkSoft,'text-anchor':'middle'});
+    textEl(g, o.x+o.w/2, o.y+o.h+30, state.style.xAxisLabel || mapLabel(state.mapping.x), {'font-size':11.5, fill:o.t.inkSoft,'text-anchor':'middle'});
     var yLabel = el('text', {x:14, y:o.y+o.h/2, 'font-family':SANS, 'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'middle', transform:'rotate(-90 14 '+(o.y+o.h/2)+')'}, g);
-    yLabel.textContent = state.style.yAxisLabel || state.mapping.y||'';
+    yLabel.textContent = state.style.yAxisLabel || mapLabel(state.mapping.y);
 
     scd.points.forEach(function(p){
       var cx=o.x+x(p.x), cy=o.y+y(p.y);
@@ -2683,7 +2735,7 @@
       var isHi = !!state.highlights[p.key];
       el('circle', {cx:cx, cy:cy, r:r, fill:p.color, 'fill-opacity':0.85, stroke:o.t.surface, 'stroke-width':2, 'data-key':p.key}, g);
       var label = (p.group && p.group!=='__all__') ? p.group : null;
-      points.push({key:p.key, x:cx, y:cy, category:label, value:(state.mapping.x+' '+fmtNum(p.x)+', '+state.mapping.y+' '+fmtNum(p.y)), shape:'circle', box:{cx:cx,cy:cy,r:r}});
+      points.push({key:p.key, x:cx, y:cy, category:label, value:(mapLabel(state.mapping.x)+' '+fmtNum(p.x)+', '+mapLabel(state.mapping.y)+' '+fmtNum(p.y)), shape:'circle', box:{cx:cx,cy:cy,r:r}});
       if(isHi) highlightRing(g, 'circle', {cx:cx,cy:cy,r:r}, o.t);
     });
     return points;
@@ -2900,10 +2952,10 @@
     var wrap = document.createElement('div'); wrap.className='table-view-wrap';
     var table = document.createElement('table'); table.className='preview-table';
     var cols;
-    if(state.chartType==='pie') cols = [state.mapping.category, state.mapping.value];
-    else if(state.chartType==='scatter') cols = [state.mapping.x, state.mapping.y].concat(state.mapping.size?[state.mapping.size]:[]);
-    else if(state.chartType==='waterfall') cols = [state.mapping.category, state.mapping.value];
-    else if(state.chartType==='range') cols = [state.mapping.category, state.mapping.rangeA, state.mapping.rangeB];
+    if(state.chartType==='pie') cols = [state.mapping.category].concat(state.mapping.value);
+    else if(state.chartType==='scatter') cols = [].concat(state.mapping.x, state.mapping.y, state.mapping.size?[state.mapping.size]:[]);
+    else if(state.chartType==='waterfall') cols = [state.mapping.category].concat(state.mapping.value);
+    else if(state.chartType==='range') cols = [state.mapping.category].concat(state.mapping.rangeA, state.mapping.rangeB);
     else cols = [state.mapping.category].concat(state.mapping.series.length? state.mapping.series : numericColumns().map(function(c){return c.name;}));
     var thead=document.createElement('thead'); var tr=document.createElement('tr');
     cols.forEach(function(c){ var th=document.createElement('th'); th.textContent=c||''; tr.appendChild(th); });
