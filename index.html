@@ -430,6 +430,11 @@
           </div>
           <div class="rail-panel" id="railPanelAnnotate" hidden>
             <div class="annotate-section">
+              <h4>Auto-highlight</h4>
+              <button class="btn small ghost" id="autoAnnotateBtn" type="button">&#10024; Auto-highlight key data points</button>
+              <div class="fine" id="autoAnnotateHint">Circles and labels the standout points for you — add your own on top, or delete any of them below.</div>
+            </div>
+            <div class="annotate-section">
               <h4>Text annotations</h4>
               <div id="textAnnotateControl"></div>
               <div class="annotation-list" id="annotationList"></div>
@@ -1104,6 +1109,79 @@
     });
     return bits.join('; ')+'.';
   }
+
+  /* ============ auto-highlight engine ============ */
+  // Same shape as toItems() but carrying the actual mark `key` and a short human label,
+  // so a candidate can become a real state.highlights entry + annotation anchor, not just
+  // narrative text. Multi-series charts keep every series/category point (not collapsed
+  // totals) since each one is an individual mark that can be circled on its own.
+  function collectAnnotatablePoints(){
+    var ct = state.chartType;
+    if(ct==='bar' || ct==='line' || ct==='combo' || ct==='heatmap'){
+      var sd = seriesData();
+      if(!sd.series.length) return [];
+      var pts = [];
+      sd.series.forEach(function(s){
+        s.values.forEach(function(v){
+          pts.push({ key:v.key, value:(ct==='combo'?v.indexed:v.value), label: sd.series.length>1 ? (s.name+' — '+v.category) : v.category });
+        });
+      });
+      return pts;
+    }
+    if(ct==='pie') return pieData().map(function(d){ return {key:d.key, value:d.value, label:d.category}; });
+    if(ct==='waterfall') return waterfallData().filter(function(d){ return !d.isTotal; }).map(function(d){ return {key:d.key, value:d.value, label:d.category}; });
+    if(ct==='range') return rangeData().map(function(d){ return {key:d.key, value:d.b-d.a, label:d.category}; });
+    if(ct==='scatter'){
+      var scd = scatterData();
+      if(!scd.points.length) return [];
+      var mx = meanStd(scd.points.map(function(p){return p.x;}));
+      var my = meanStd(scd.points.map(function(p){return p.y;}));
+      return scd.points.map(function(p){
+        var zx = mx.std ? (p.x-mx.mean)/mx.std : 0, zy = my.std ? (p.y-my.mean)/my.std : 0;
+        return { key:p.key, value:Math.sqrt(zx*zx+zy*zy), label:(p.group&&p.group!=='__all__'?p.group+' ':'')+'('+fmtVal(p.x)+', '+fmtVal(p.y)+')' };
+      });
+    }
+    return [];
+  }
+  // Circles the standout marks and drops a short label on each one - a one-click first
+  // pass the reader edits from, not a replacement for their own judgment. Regenerating
+  // clears only the annotations a previous auto-run added (tagged `auto:true`); anything
+  // the reader typed themselves is never touched, and any mark they've circled by hand
+  // stays circled either way.
+  function autoAnnotate(){
+    var points = collectAnnotatablePoints();
+    if(points.length<3) return 0;
+
+    var picked;
+    if(state.chartType==='scatter'){
+      picked = points.slice().sort(function(a,b){ return b.value-a.value; })
+        .filter(function(p){ return p.value>=1.3; }).slice(0,4)
+        .map(function(p){ return { point:p, text:p.label+' — furthest from the pack' }; });
+    } else {
+      var ms = meanStd(points.map(function(p){return p.value;}));
+      var scored = points.map(function(p){ return Object.assign({}, p, { z: ms.std ? (p.value-ms.mean)/ms.std : 0 }); });
+      picked = scored.filter(function(p){ return Math.abs(p.z)>=1.3; })
+        .sort(function(a,b){ return Math.abs(b.z)-Math.abs(a.z); }).slice(0,4)
+        .map(function(p){ return { point:p, text:p.label+(p.z>=0?' — well above average':' — well below average') }; });
+      if(!picked.length){
+        // Nothing statistically stands out (a flat, low-variance dataset) - fall back to
+        // the single highest/lowest point so the button still does something useful.
+        var byVal = scored.slice().sort(function(a,b){ return b.value-a.value; });
+        var top = byVal[0], bottom = byVal[byVal.length-1];
+        picked = [{ point:top, text: top.label+' — highest' }];
+        if(bottom && bottom.key!==top.key) picked.push({ point:bottom, text: bottom.label+' — lowest' });
+      }
+    }
+    if(!picked.length) return 0;
+
+    state.annotations = state.annotations.filter(function(a){ return !a.auto; });
+    picked.forEach(function(p, i){
+      state.highlights[p.point.key] = true;
+      var above = i%2===0;
+      state.annotations.push({ id: uid(), key: p.point.key, text: p.text, dx: above?-18:18, dy: above?-46:34, auto:true });
+    });
+    return picked.length;
+  }
   // Biggest single-step swing and how often the series moved up vs. down — the texture
   // that "first vs. last" alone misses (a flat headline can still hide a volatile middle).
   function seriesVolatility(values){
@@ -1389,6 +1467,13 @@
     });
     document.getElementById('noteInput').addEventListener('input', function(){ state.style.note = this.value; renderVisualize(); renderPublish(); });
     document.getElementById('unitInput').addEventListener('input', function(){ state.style.unit = this.value; renderVisualize(); renderPublish(); });
+    document.getElementById('autoAnnotateBtn').addEventListener('click', function(){
+      var count = autoAnnotate();
+      document.getElementById('autoAnnotateHint').textContent = count
+        ? 'Highlighted '+count+' standout point'+(count===1?'':'s')+' — add your own on top, or delete any of them below.'
+        : 'Not enough data points here to find a standout yet.';
+      renderAnnotatePanel(); renderVisualize(); renderPublish();
+    });
     document.getElementById('genInsightBtn').addEventListener('click', function(){
       var summary = generateInsightSummary();
       state.style.note = summary;
@@ -2840,6 +2925,15 @@
   }
 
   /* ============ step renderers ============ */
+  // Colorblind simulation used to only ever reach the Publish tab's preview SVG - the
+  // Visualize tab built its own fresh SVG with no filter applied, so picking a CVD mode
+  // did nothing until you switched tabs. Both render paths now reapply state.cvdFilter
+  // to whatever SVG they just built.
+  function applyCvdFilter(svg){
+    if(!svg) return;
+    if(state.cvdFilter && state.cvdFilter!=='none'){ ensureCvdFilterDefs(); svg.style.filter = 'url(#cvd-'+state.cvdFilter+')'; }
+    else svg.style.filter = '';
+  }
   function renderVisualize(){
     renderMappingPanel();
     renderRefinePanel();
@@ -2847,11 +2941,11 @@
     updateModeHint();
     document.getElementById('toggleTableBtn').textContent = state.tableView ? 'View as chart' : 'View as table';
     var area = document.getElementById('canvasArea');
-    if(state.tableView){ renderTableView(area); } else { buildChart(area, {interactive:true}); }
+    if(state.tableView){ renderTableView(area); } else { applyCvdFilter(buildChart(area, {interactive:true})); }
   }
   function renderPublish(){
     var svg = buildChart(document.getElementById('publishPreview'), {interactive:false});
-    if(state.cvdFilter && state.cvdFilter!=='none'){ ensureCvdFilterDefs(); svg.style.filter = 'url(#cvd-'+state.cvdFilter+')'; }
+    applyCvdFilter(svg);
     updateHeightField();
   }
 
@@ -2922,10 +3016,8 @@
       b.style.fontSize='10.5px'; b.style.fontWeight='700'; b.textContent=c.label.slice(0,1);
       b.setAttribute('aria-pressed', i===0);
       b.addEventListener('click', function(){
-        var svg = document.querySelector('#publishPreview svg');
-        if(svg){ svg.style.filter = c.id==='none' ? '' : ('url(#cvd-'+c.id+')'); }
-        if(c.id!=='none') ensureCvdFilterDefs();
         state.cvdFilter = c.id;
+        ['#canvasArea svg', '#publishPreview svg'].forEach(function(sel){ applyCvdFilter(document.querySelector(sel)); });
         document.querySelectorAll('#cvdButtons .icon-btn').forEach(function(o){ o.setAttribute('aria-pressed', o===b); });
       });
       cvdWrap.appendChild(b);
