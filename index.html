@@ -1,0 +1,2799 @@
+<title>Chart Studio</title>
+<style>
+  :root{
+    color-scheme: light;
+    --page: #f2f5f9;
+    --surface: #ffffff;
+    --surface-2: #eaeff6;
+    --ink: #0a1a2e;
+    --ink-soft: #435269;
+    --muted: #7c8aa0;
+    --hairline: #dde3ec;
+    --navy: #0b2f5c;
+    --navy-soft: #e6edf6;
+    --navy-ink: #ffffff;
+    --accent: #0f6fc5;
+    --mark: #b5342a;
+    --mark-soft: #f7e6e3;
+    --chart-surface: #fcfcfb;
+    --chart-ink: #0b0b0b;
+    --chart-ink-soft: #52514e;
+    --chart-muted: #898781;
+    --chart-grid: #e1e0d9;
+    --chart-axis: #c3c2b7;
+    --good: #147a3d;
+    --danger: #b5342a;
+    --shadow: 0 1px 2px rgba(10,26,46,0.06), 0 10px 28px rgba(10,26,46,0.08);
+    --radius-s: 6px;
+    --radius-m: 10px;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --page: #0a121e;
+      --surface: #121b29;
+      --surface-2: #182338;
+      --ink: #eef2f7;
+      --ink-soft: #b7c1d1;
+      --muted: #8291a8;
+      --hairline: #24304a;
+      --navy: #15427d;
+      --navy-soft: #16294a;
+      --navy-ink: #ffffff;
+      --accent: #5aa8e8;
+      --mark: #e2685a;
+      --mark-soft: #3a231e;
+      --chart-surface: #1a1a19;
+      --chart-ink: #ffffff;
+      --chart-ink-soft: #c3c2b7;
+      --chart-muted: #8f8974;
+      --chart-grid: #2c2c2a;
+      --chart-axis: #383835;
+      --good: #35b56a;
+      --danger: #e66767;
+      --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 10px 30px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --page: #0a121e;
+    --surface: #121b29;
+    --surface-2: #182338;
+    --ink: #eef2f7;
+    --ink-soft: #b7c1d1;
+    --muted: #8291a8;
+    --hairline: #24304a;
+    --navy: #15427d;
+    --navy-soft: #16294a;
+    --navy-ink: #ffffff;
+    --accent: #5aa8e8;
+    --mark: #e2685a;
+    --mark-soft: #3a231e;
+    --chart-surface: #1a1a19;
+    --chart-ink: #ffffff;
+    --chart-ink-soft: #c3c2b7;
+    --chart-muted: #8f8974;
+    --chart-grid: #2c2c2a;
+    --chart-axis: #383835;
+    --good: #35b56a;
+    --danger: #e66767;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 10px 30px rgba(0,0,0,0.4);
+  }
+
+  *{ box-sizing: border-box; }
+  body{
+    background: var(--page);
+    color: var(--ink);
+    font-family: var(--sans);
+    padding-inline: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,h2,h3{ font-family: var(--sans); text-wrap: balance; font-weight: 700; letter-spacing: -0.015em; margin:0; }
+  button{ font-family: inherit; }
+  input, select, textarea{ font-family: inherit; }
+  :focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+  .mono{ font-family: var(--mono); }
+  .tabular{ font-variant-numeric: tabular-nums; }
+  [hidden]{ display: none !important; }
+  .eyebrow{
+    font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 6px;
+  }
+
+  /* ---------- app shell ---------- */
+  .app{ min-height: 100%; display: flex; flex-direction: column; }
+  .topbar{
+    background: var(--surface); border-bottom: 1px solid var(--hairline);
+    display:flex; align-items:center; gap:24px; padding: 12px 20px; flex-wrap:wrap;
+  }
+  .wordmark{ display:flex; align-items:baseline; gap:9px; }
+  .wordmark .mark-glyph{ font-weight:800; font-size: 17px; color: var(--ink); letter-spacing:-0.02em; }
+  .wordmark .mark-glyph em{ color: var(--accent); font-style: normal; }
+  .steps{ display:flex; gap: 18px; margin-left: auto; }
+  .steps button{
+    border:none; border-bottom:2px solid transparent; background:transparent; color: var(--muted);
+    font-size: 13.5px; font-weight: 600; padding: 6px 2px; cursor:pointer; display:flex; align-items:center; gap:8px;
+  }
+  .steps button .n{
+    width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+    font-size: 10px; font-family: var(--mono); background: var(--surface-2); color: var(--muted);
+  }
+  .steps button[aria-current="step"]{ color: var(--ink); border-bottom-color: var(--accent); }
+  .steps button[aria-current="step"] .n{ background: var(--accent); color: #fff; }
+  .steps button:hover{ color: var(--ink); }
+
+  main{ flex:1; padding: 26px 20px 64px; max-width: 1320px; width:100%; margin-inline:auto; }
+  .panel-title{ margin-bottom: 20px; }
+  .panel-title h2{ font-size: 23px; margin:0 0 4px; }
+  .panel-title p{ color: var(--muted); font-size: 13.5px; margin:0; }
+
+  .card{
+    background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius-m);
+    box-shadow: var(--shadow);
+  }
+  .exhibit-card{ border-top: 3px solid var(--accent); border-top-left-radius:2px; border-top-right-radius:2px; }
+  .banner{
+    display:flex; align-items:center; gap:12px; padding: 10px 14px; border-radius: var(--radius-s);
+    background: var(--mark-soft); border: 1px solid color-mix(in srgb, var(--mark) 30%, transparent);
+    font-size: 13px; color: var(--ink-soft); margin-bottom: 16px;
+  }
+  .banner strong{ color: var(--ink); }
+  .banner button{
+    margin-left:auto; border:none; background: var(--surface); color: var(--ink);
+    padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight:600; cursor:pointer;
+    border: 1px solid var(--hairline);
+  }
+
+  .btn{
+    border:1px solid var(--hairline); background: var(--surface); color: var(--ink);
+    padding: 9px 16px; border-radius: 7px; font-size: 13.5px; font-weight:600; cursor:pointer;
+    display:inline-flex; align-items:center; gap:8px; white-space:nowrap;
+  }
+  .btn:hover{ background: var(--surface-2); }
+  .btn.primary{ background: var(--navy); color: #fff; border-color: transparent; }
+  .btn.primary:hover{ filter: brightness(1.18); }
+  .btn.mark{ background: var(--mark); color: #fff; border-color: transparent; }
+  .btn.mark:hover{ filter: brightness(1.08); }
+  .btn.ghost{ background: transparent; }
+  .btn.small{ padding: 6px 11px; font-size: 12.5px; }
+  .btn[disabled]{ opacity:0.45; cursor:not-allowed; }
+  .btn.active{ background: var(--navy); color: #fff; border-color: transparent; }
+
+  /* ---------- upload step ---------- */
+  .upload-grid{ display:grid; gap:20px; }
+  .dropzone{
+    border: 2px dashed var(--hairline); border-radius: var(--radius-m); padding: 40px 20px;
+    text-align:center; background: var(--surface); cursor:pointer; transition: border-color .15s, background .15s;
+  }
+  .dropzone.dragging{ border-color: var(--accent); background: var(--navy-soft); }
+  .dropzone h3{ margin: 0 0 6px; font-size: 19px; }
+  .dropzone p{ margin:0; color: var(--muted); font-size: 13.5px; }
+  .dropzone .file-icon{ font-size: 34px; margin-bottom: 10px; }
+  .sample-row{ display:flex; gap:10px; justify-content:center; margin-top:18px; flex-wrap:wrap; }
+
+  .grid-toolbar{ display:flex; align-items:center; gap:10px; padding: 12px 14px; border-bottom:1px solid var(--hairline); flex-wrap:wrap; }
+  .grid-toolbar .source-name{ font-size: 13px; color: var(--muted); margin-right:auto; }
+  .table-wrap{ overflow-x:auto; }
+  table.data-grid{ border-collapse: collapse; width:100%; font-size: 13.5px; }
+  table.data-grid th, table.data-grid td{ border-bottom:1px solid var(--hairline); padding: 8px 10px; text-align:left; white-space:nowrap; }
+  table.data-grid thead th{ background: var(--surface-2); vertical-align:top; }
+  table.data-grid td[contenteditable], table.data-grid th .col-name[contenteditable]{ outline:none; cursor:text; border-radius:4px; }
+  table.data-grid td[contenteditable]:focus, table.data-grid th .col-name[contenteditable]:focus{ background: var(--navy-soft); }
+  table.data-grid td.numeric{ font-family: var(--mono); font-variant-numeric: tabular-nums; text-align:right; }
+  .col-name{ font-weight:700; display:block; margin-bottom:4px; }
+  .type-pill{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color: var(--muted);
+    border:1px solid var(--hairline); border-radius:999px; padding:2px 8px; cursor:pointer; background: var(--surface);
+  }
+  .type-pill:hover{ color: var(--ink); }
+  .row-actions button, .col-actions button{ border:none; background:transparent; color: var(--muted); cursor:pointer; font-size:14px; padding:2px 4px; }
+  .row-actions button:hover{ color: var(--danger); }
+
+  /* ---------- recommendations ---------- */
+  .reco-head{ padding: 16px 18px 4px; }
+  .reco-head h3{ font-size:16px; margin-bottom:2px; }
+  .reco-head p{ color:var(--muted); font-size:12.5px; margin:0; }
+  .reco-cards{ display:grid; grid-template-columns: repeat(3,1fr); gap:14px; padding: 14px 18px 18px; }
+  .reco-card{ border:1px solid var(--hairline); border-radius: var(--radius-s); padding:14px; display:flex; flex-direction:column; gap:8px; background: var(--surface); }
+  .reco-card .reco-icon{ width:30px; height:24px; color: var(--accent); }
+  .reco-card h4{ font-size:14.5px; margin:0; }
+  .reco-card p{ font-size:12px; color: var(--ink-soft); margin:0; flex:1; line-height:1.5; }
+  .reco-card button{ align-self:flex-start; }
+
+  /* ---------- visualize step ---------- */
+  .viz-layout{ display:grid; grid-template-columns: 288px 1fr; gap:18px; align-items:start; }
+  .viz-layout.expanded{ grid-template-columns: 1fr; }
+  .viz-layout.expanded .rail-tabs{ display:none; }
+  #expandBtn[aria-pressed="true"]{ border-color:var(--accent); color:var(--accent); }
+  .rail{ padding: 16px; display:flex; flex-direction:column; gap:18px; }
+  .rail h4{ font-size:11px; text-transform:uppercase; letter-spacing:.07em; color: var(--muted); margin:0 0 10px; font-weight:700; }
+  .rail-tabs{ padding:0; overflow:hidden; }
+  .rail-tabstrip{ display:flex; border-bottom:1px solid var(--hairline); }
+  .rail-tabstrip button{
+    flex:1; border:none; background:transparent; padding:12px 8px; font-size:12.5px; font-weight:600;
+    color: var(--muted); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;
+  }
+  .rail-tabstrip button[aria-selected="true"]{ color: var(--ink); border-bottom-color: var(--accent); }
+  .rail-tabstrip button:hover{ color: var(--ink); }
+  .rail-panel{ padding:16px; display:flex; flex-direction:column; gap:18px; }
+  .rail-panel h4{ font-size:11px; text-transform:uppercase; letter-spacing:.07em; color: var(--muted); margin:0 0 10px; font-weight:700; }
+  .preview-col{ display:flex; flex-direction:column; gap:16px; }
+  .type-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap:8px; max-height:420px; overflow-y:auto; padding-right:2px; }
+  .type-btn{
+    border:1px solid var(--hairline); background: var(--surface); border-radius: var(--radius-s);
+    padding: 9px 6px; display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; font-size:11px; color: var(--ink-soft); text-align:center;
+  }
+  .type-btn svg{ width:24px; height:19px; }
+  .type-btn[aria-pressed="true"]{ border-color: var(--accent); background: var(--navy-soft); color: var(--accent); }
+  .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .field label{ font-size:12.5px; font-weight:600; color: var(--ink-soft); }
+  .field input[type=text], .field select, .field textarea{
+    border:1px solid var(--hairline); border-radius: var(--radius-s); padding:8px 10px; font-size:13.5px;
+    background: var(--surface); color: var(--ink); width:100%;
+  }
+  .field textarea{ resize:vertical; min-height:44px; }
+  .fine{ font-size:11px; color:var(--muted); margin:0; line-height:1.5; }
+  .field .fine{ margin-top:-2px; }
+  .btn-group{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    border:1px solid var(--hairline); background: var(--surface); color: var(--ink-soft);
+    border-radius: 999px; padding:5px 12px; font-size:12px; font-family: var(--sans); cursor:pointer;
+  }
+  .chip:hover{ border-color: var(--accent); }
+  .chip-active{ border-color: var(--accent); background: var(--navy-soft); color: var(--accent); font-weight:600; }
+  .checklist{ display:flex; flex-direction:column; gap:8px; }
+  .checklist label{ display:flex; align-items:center; gap:8px; font-size:13.5px; color: var(--ink-soft); cursor:pointer; }
+  .checklist .swatch{ width:11px; height:11px; border-radius:3px; flex:none; }
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+  .toggle-row span{ font-size:13px; color: var(--ink-soft); }
+  .switch{ position:relative; width:36px; height:20px; flex:none; }
+  .switch input{ opacity:0; width:100%; height:100%; margin:0; position:absolute; cursor:pointer; }
+  .switch .track{ position:absolute; inset:0; background: var(--surface-2); border:1px solid var(--hairline); border-radius:999px; transition:.15s; }
+  .switch .thumb{ position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background: var(--muted); transition:.15s; }
+  .switch input:checked + .track{ background: var(--accent); border-color: transparent; }
+  .switch input:checked + .track + .thumb{ transform: translateX(16px); background:#fff; }
+
+  .canvas-card{ padding: 0; overflow:hidden; }
+  .canvas-toolbar{ display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--hairline); flex-wrap:wrap; }
+  .canvas-toolbar .hint{ font-size:12.5px; color: var(--muted); margin-left:auto; }
+  .canvas-area{ position:relative; padding: 18px; background: var(--chart-surface); }
+  .canvas-area svg{ width:100%; height:auto; display:block; }
+  .tooltip{
+    position:absolute; pointer-events:none; background: var(--navy); color: #fff;
+    padding:7px 10px; border-radius:6px; font-size:12px; line-height:1.5; box-shadow: var(--shadow);
+    transform: translate(-50%, -100%); margin-top:-10px; z-index:5; max-width:220px;
+  }
+  .tooltip .row{ display:flex; align-items:center; gap:6px; }
+  .tooltip .key{ width:9px; height:9px; border-radius:2px; flex:none; }
+  .tooltip .val{ font-family: var(--mono); font-weight:700; }
+  .tooltip .name{ opacity:0.78; }
+
+  .annotation-list{ display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; }
+  .annotation-item{ border:1px solid var(--hairline); border-radius: var(--radius-s); padding:8px 10px; background: var(--surface); }
+  .annotation-item textarea{ width:100%; border:none; resize:none; font-size:13px; padding:0; background:transparent; color:var(--ink); }
+  .annotation-item .meta{ display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+  .annotation-item .meta .dot{ width:8px; height:8px; border-radius:50%; background:var(--mark); }
+  .annotation-item .meta small{ color:var(--muted); font-size:11px; flex:1; }
+  .annotation-item .meta button{ border:none; background:transparent; color:var(--muted); cursor:pointer; }
+  .annotation-item .meta button:hover{ color: var(--danger); }
+  .empty-note{ font-size:12.5px; color: var(--muted); border:1px dashed var(--hairline); border-radius: var(--radius-s); padding:12px; text-align:center; }
+
+  .annotate-section{ display:flex; flex-direction:column; gap:10px; }
+  .annotate-section + .annotate-section{ border-top:1px solid var(--hairline); padding-top:16px; margin-top:2px; }
+  .create-control{
+    border:1px dashed var(--hairline); border-radius: var(--radius-s); padding:12px; display:flex;
+    flex-direction:column; gap:8px; align-items:flex-start; background: var(--surface-2);
+  }
+  .create-control p{ margin:0; font-size:12.5px; color:var(--ink-soft); line-height:1.5; }
+  .create-control.active{ border-style:solid; border-color: var(--mark); background: var(--mark-soft); }
+  .create-control.active p{ color: var(--ink); font-weight:600; }
+  .range-list{ display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; }
+  .range-item{ border:1px solid var(--hairline); border-radius: var(--radius-s); padding:8px 10px; background: var(--surface); display:flex; align-items:center; gap:8px; }
+  .range-item .range-swatch{ width:10px; height:18px; border-radius:2px; flex:none; background: var(--mark); opacity:0.55; }
+  .range-item .range-fields{ flex:1; display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .range-item .range-fields .row{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); }
+  .range-item select{ flex:1; min-width:0; border:1px solid var(--hairline); border-radius:4px; padding:3px 4px; font-size:11.5px; background:var(--surface); color:var(--ink); }
+  .range-item .arrow{ color:var(--muted); flex:none; }
+  .range-item .del{ border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:15px; flex:none; }
+  .range-item .del:hover{ color:var(--danger); }
+
+  .step-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+
+  /* ---------- publish ---------- */
+  .publish-layout{ display:grid; grid-template-columns: 1fr 300px; gap:18px; align-items:start; }
+  .publish-preview{ padding: 24px; background: var(--chart-surface); }
+  .publish-preview svg{ width:100%; height:auto; display:block; }
+  .export-panel{ padding:16px; display:flex; flex-direction:column; gap:12px; align-self:start; }
+  .preview-toolbar{ margin-top:16px; padding-bottom:16px; }
+  .preview-toolbar-row{ display:flex; flex-wrap:wrap; gap:28px; padding: 12px 16px 16px; }
+  .ptb-group{ display:flex; flex-direction:column; gap:8px; }
+  .ptb-label{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; }
+  .ptb-size{ display:flex; align-items:center; gap:8px; }
+  .ptb-size input{ width:76px; border:1px solid var(--hairline); border-radius:var(--radius-s); padding:7px 9px; font-size:13.5px; background:var(--surface); color:var(--ink); font-family:var(--mono); }
+  .ptb-size input:disabled{ color:var(--muted); background:var(--surface-2); }
+  .ptb-x{ color:var(--muted); font-size:13px; }
+  .ptb-devices, .ptb-cvd, .ptb-theme{ display:flex; gap:6px; }
+  .icon-btn{ border:1px solid var(--hairline); background:var(--surface); border-radius:var(--radius-s); width:38px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-soft); }
+  .icon-btn svg{ width:18px; height:18px; }
+  .icon-btn[aria-pressed="true"]{ border-color:var(--accent); background:var(--navy-soft); color:var(--accent); }
+  .icon-btn.cvd-dot span{ width:14px; height:14px; border-radius:50%; display:block; }
+
+  .modal-backdrop{ position:fixed; inset:0; background: rgba(6,12,22,0.55); display:flex; align-items:center; justify-content:center; padding:24px; z-index:20; }
+  .modal{ background: var(--surface); border-radius: var(--radius-m); max-width:720px; width:100%; max-height:86vh; overflow-y:auto; padding:20px; box-shadow: var(--shadow); }
+  .modal h3{ margin:0 0 4px; font-size:18px; }
+  .modal p.hint{ color:var(--muted); font-size:13px; margin:0 0 14px; }
+  .modal img{ width:100%; border:1px solid var(--hairline); border-radius: var(--radius-s); background: var(--chart-surface); }
+  .modal textarea.svg-code{ width:100%; height:160px; font-family: var(--mono); font-size:11.5px; border:1px solid var(--hairline); border-radius: var(--radius-s); padding:10px; background: var(--page); color: var(--ink-soft); }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
+
+  .table-view-wrap{ padding:18px; }
+  table.preview-table{ border-collapse:collapse; width:100%; font-size:13px; }
+  table.preview-table th, table.preview-table td{ border-bottom:1px solid var(--hairline); padding:7px 10px; text-align:left; }
+  table.preview-table td.num{ font-family: var(--mono); font-variant-numeric: tabular-nums; text-align:right; }
+
+  @media (max-width: 860px){
+    .viz-layout, .publish-layout{ grid-template-columns: 1fr; }
+    .type-grid{ grid-template-columns: repeat(4,1fr); }
+    .reco-cards{ grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px){
+    .type-grid{ grid-template-columns: repeat(3,1fr); }
+    .topbar{ gap:10px; }
+    .steps{ margin-left:0; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; } }
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="wordmark">
+      <span class="mark-glyph">Chart <em>Studio</em></span>
+    </div>
+    <nav class="steps" id="stepNav">
+      <button data-step="upload"><span class="n">1</span> Data</button>
+      <button data-step="visualize"><span class="n">2</span> Visualize &amp; mark</button>
+      <button data-step="publish"><span class="n">3</span> Publish</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- STEP 1: UPLOAD -->
+    <section id="panel-upload">
+      <div class="panel-title">
+        <p class="eyebrow">Step 01</p>
+        <h2>Bring in your data</h2>
+        <p>Upload a spreadsheet, check it, and we'll suggest the visualizations that fit it best.</p>
+      </div>
+      <div class="upload-grid">
+        <div id="dropzone" class="dropzone">
+          <div class="file-icon">&#128196;</div>
+          <h3>Drop a CSV or Excel file</h3>
+          <p>or click to browse &mdash; .csv, .xlsx, .xls</p>
+          <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden>
+          <div class="sample-row" onclick="event.stopPropagation()">
+            <button class="btn small" id="loadSampleBtn" type="button">Use sample data</button>
+          </div>
+        </div>
+
+        <div class="card" id="gridCard" hidden>
+          <div class="grid-toolbar">
+            <span class="source-name" id="sourceName"></span>
+            <button class="btn small ghost" id="addColBtn" type="button">+ Column</button>
+            <button class="btn small ghost" id="addRowBtn" type="button">+ Row</button>
+          </div>
+          <div class="table-wrap"><table class="data-grid" id="dataGrid"></table></div>
+        </div>
+
+        <div class="card" id="recoPanel" hidden>
+          <div class="reco-head">
+            <p class="eyebrow">Suggested for this data</p>
+            <h3>Recommended visualizations</h3>
+            <p>Based on your columns, row count and value ranges.</p>
+          </div>
+          <div class="reco-cards" id="recoCards"></div>
+        </div>
+
+        <div class="step-actions">
+          <button class="btn primary" id="toVisualizeBtn" type="button">Continue to Visualize &rarr;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2: VISUALIZE -->
+    <section id="panel-visualize" hidden>
+      <div class="panel-title">
+        <p class="eyebrow">Step 02</p>
+        <h2>Visualize &amp; mark it up</h2>
+        <p>Pick a chart, map your columns, then click any mark to circle it or leave a note.</p>
+      </div>
+      <div id="sampleBanner" class="banner" hidden>
+        <span>&#9998;&nbsp;<strong>Sample data</strong> &mdash; monthly browser market share, 2009&ndash;2023 (with the Chrome/IE crossover already circled and noted).</span>
+        <button id="replaceSampleBtn" type="button">Replace with your file</button>
+      </div>
+
+      <div class="viz-layout">
+        <div class="card rail-tabs">
+          <div class="rail-tabstrip" id="railTabstrip">
+            <button data-tab="type" type="button">Chart type</button>
+            <button data-tab="refine" type="button">Refine</button>
+            <button data-tab="annotate" type="button">Annotate</button>
+            <button data-tab="layout" type="button">Layout</button>
+          </div>
+          <div class="rail-panel" id="railPanelType">
+            <div class="type-grid" id="typeGrid"></div>
+            <div id="mappingFields"></div>
+          </div>
+          <div class="rail-panel" id="railPanelRefine" hidden>
+            <div id="refineFields"></div>
+          </div>
+          <div class="rail-panel" id="railPanelAnnotate" hidden>
+            <div class="annotate-section">
+              <h4>Text annotations</h4>
+              <div id="textAnnotateControl"></div>
+              <div class="annotation-list" id="annotationList"></div>
+            </div>
+            <div class="annotate-section">
+              <h4>Highlight range</h4>
+              <div id="rangeAnnotateControl"></div>
+              <div class="range-list" id="rangeList"></div>
+            </div>
+          </div>
+          <div class="rail-panel" id="railPanelLayout">
+            <h4>Title &amp; labels</h4>
+            <div class="field"><label for="titleInput">Title</label><input type="text" id="titleInput" maxlength="90"></div>
+            <div class="field"><label for="subtitleInput">Subtitle</label><input type="text" id="subtitleInput" maxlength="120"></div>
+            <div class="field"><label for="sourceInput">Source</label><input type="text" id="sourceInput" maxlength="90"></div>
+            <div class="field">
+              <label for="noteInput">Note</label>
+              <textarea id="noteInput" maxlength="400"></textarea>
+              <button class="btn small ghost" id="genInsightBtn" type="button" style="align-self:flex-start;">&#10024; Generate insight summary</button>
+              <div class="fine" id="insightHint"></div>
+            </div>
+            <div class="field"><label for="unitInput">Axis unit (optional)</label><input type="text" id="unitInput" maxlength="6" placeholder="e.g. %, $, pts"></div>
+          </div>
+        </div>
+
+        <div class="preview-col">
+          <div class="card canvas-card exhibit-card">
+            <div class="canvas-toolbar">
+              <button class="btn small ghost" id="toggleTableBtn" type="button">View as table</button>
+              <span class="hint" id="modeHint">Click any mark to circle it in red.</span>
+              <button class="icon-btn" id="expandBtn" type="button" title="Expand preview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></svg>
+              </button>
+            </div>
+            <div class="canvas-area" id="canvasArea"></div>
+          </div>
+
+          <div class="card preview-toolbar">
+            <p class="eyebrow" style="padding:14px 16px 0;">Preview</p>
+            <div class="preview-toolbar-row">
+              <div class="ptb-group">
+                <span class="ptb-label">Size (px)</span>
+                <div class="ptb-size">
+                  <input type="number" id="sizeWidth" min="300" max="2400" step="10">
+                  <span class="ptb-x">&times;</span>
+                  <input type="number" id="sizeHeight" disabled>
+                </div>
+              </div>
+              <div class="ptb-group">
+                <span class="ptb-label">Device</span>
+                <div class="ptb-devices" id="deviceButtons"></div>
+              </div>
+              <div class="ptb-group">
+                <span class="ptb-label">Colorblind check</span>
+                <div class="ptb-cvd" id="cvdButtons"></div>
+              </div>
+              <div class="ptb-group">
+                <span class="ptb-label">Dark mode</span>
+                <div class="ptb-theme" id="themeButtons"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button class="btn ghost" id="backToUploadBtn" type="button">&larr; Back to data</button>
+        <button class="btn primary" id="toPublishBtn" type="button">Continue to Publish &rarr;</button>
+      </div>
+    </section>
+
+    <!-- STEP 3: PUBLISH -->
+    <section id="panel-publish" hidden>
+      <div class="panel-title">
+        <p class="eyebrow">Step 03</p>
+        <h2>Publish your chart</h2>
+        <p>Export a crisp PNG or a scalable SVG, ready to drop into a report or a page.</p>
+      </div>
+      <div class="publish-layout">
+        <div class="card publish-preview exhibit-card" id="publishPreview"></div>
+        <div class="card export-panel">
+          <button class="btn primary" id="exportPngBtn" type="button">Export as PNG</button>
+          <button class="btn ghost" id="exportSvgBtn" type="button">Export as SVG</button>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button class="btn ghost" id="backToVizBtn" type="button">&larr; Back to visualize</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="modalRoot"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  var SANS = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+  var MONO = 'ui-monospace, "SF Mono", "Menlo", "Consolas", monospace';
+
+  /* ============ palette (validated categorical, references/palette.md) + navy report chrome ============ */
+  var THEME = {
+    light:{ surface:'#fcfcfb', ink:'#0b0b0b', inkSoft:'#52514e', muted:'#898781', grid:'#e1e0d9', axis:'#c3c2b7', mark:'#b5342a', navy:'#0b2f5c', accent:'#0f6fc5' },
+    dark:{  surface:'#1a1a19', ink:'#ffffff', inkSoft:'#c3c2b7', muted:'#8f8974', grid:'#2c2c2a', axis:'#383835', mark:'#e2685a', navy:'#4a7ec2', accent:'#5aa8e8' }
+  };
+  // A monochrome blue "house" ramp, matched to the requested Datawrapper-style look.
+  // Slots 1-6 are validated for adjacent CVD + normal-vision separation (worst pair
+  // >=19 ΔE, clear of the 15 floor); mandatory direct end-labels carry identity too.
+  var CATEGORICAL = {
+    light:['#3fa9dc','#184f95','#6da7ec','#256abf','#9ec5f4','#0d366b','#7fb8ef','#d7e8fb'],
+    dark: ['#5ec9f0','#2e6bb0','#8fc4f2','#4a86c9','#cfe6fb','#123a63','#3a6fb0','#16294a']
+  };
+  var SEQ_BLUE = ['#cde2fb','#9ec5f4','#6da7ec','#3987e5','#256abf','#184f95','#0d366b'];
+  function isDark(){
+    var attr = document.documentElement.getAttribute('data-theme');
+    if(attr==='dark') return true;
+    if(attr==='light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function theme(){ return isDark() ? THEME.dark : THEME.light; }
+  function cats(){ return isDark() ? CATEGORICAL.dark : CATEGORICAL.light; }
+
+  /* ============ sample data ============ */
+  var SAMPLE_AOA = [
+    ['Month','Chrome','Safari','Other','Edge','Firefox','IE'],
+    ['2009-01',3.9,7.7,6.5,0.0,21.2,60.6],
+    ['2009-02',4.2,7.7,6.8,0.0,21.1,60.2],
+    ['2009-03',4.3,7.6,6.9,0.0,21.0,60.1],
+    ['2009-04',4.6,7.4,6.9,0.0,21.1,60.0],
+    ['2009-05',4.8,7.4,7.1,0.0,20.8,59.9],
+    ['2009-06',4.6,7.6,7.5,0.0,20.6,59.8],
+    ['2009-07',4.5,7.5,7.9,0.0,20.7,59.4],
+    ['2009-08',5.2,7.4,8.0,0.0,20.5,59.0],
+    ['2009-09',5.8,7.6,7.9,0.0,20.3,58.5],
+    ['2009-10',6.1,7.8,7.8,0.0,20.4,57.9],
+    ['2009-11',6.6,7.8,7.9,0.0,20.1,57.6],
+    ['2009-12',7.4,7.7,8.1,0.0,19.6,57.2],
+    ['2010-01',7.6,7.7,8.4,0.0,19.6,56.7],
+    ['2010-02',7.5,7.8,8.4,0.0,19.4,56.7],
+    ['2010-03',8.0,7.8,8.3,0.0,19.3,56.7],
+    ['2010-04',8.6,7.6,8.2,0.0,19.5,56.1],
+    ['2010-05',9.0,7.6,8.2,0.0,19.5,55.7],
+    ['2010-06',9.5,7.7,8.4,0.0,19.2,55.3],
+    ['2010-07',10.6,7.8,8.3,0.0,19.0,54.3],
+    ['2010-08',11.6,7.8,8.1,0.0,18.6,53.8],
+    ['2010-09',12.0,8.0,7.8,0.0,18.2,54.0],
+    ['2010-10',12.5,8.2,7.6,0.0,18.1,53.5],
+    ['2010-11',13.4,8.3,7.7,0.0,18.0,52.7],
+    ['2010-12',13.9,8.2,7.8,0.0,17.8,52.3],
+    ['2011-01',14.3,8.0,7.7,0.0,18.1,51.9],
+    ['2011-02',15.4,8.1,7.3,0.0,18.0,51.2],
+    ['2011-03',16.8,8.2,6.9,0.0,17.6,50.5],
+    ['2011-04',17.8,8.1,6.7,0.0,17.4,50.1],
+    ['2011-05',18.7,8.1,6.7,0.0,16.9,49.5],
+    ['2011-06',20.0,8.3,6.7,0.0,16.4,48.7],
+    ['2011-07',20.9,8.6,6.4,0.0,16.2,47.9],
+    ['2011-08',21.5,8.8,6.0,0.0,16.2,47.4],
+    ['2011-09',22.5,8.8,5.7,0.0,16.2,46.8],
+    ['2011-10',23.7,8.8,5.5,0.0,16.2,45.7],
+    ['2011-11',24.9,8.9,5.6,0.0,15.8,44.8],
+    ['2011-12',26.3,8.9,5.6,0.0,15.3,43.9],
+    ['2012-01',27.8,8.7,5.3,0.0,15.0,43.1],
+    ['2012-02',29.5,8.7,4.9,0.0,14.5,42.4],
+    ['2012-03',30.7,9.0,4.7,0.0,14.1,41.5],
+    ['2012-04',31.4,9.2,4.7,0.0,14.2,40.5],
+    ['2012-05',32.4,9.2,4.8,0.0,13.9,39.6],
+    ['2012-06',33.7,9.4,4.8,0.0,13.6,38.5],
+    ['2012-07',34.8,9.8,4.6,0.0,13.5,37.3],
+    ['2012-08',36.2,9.9,4.4,0.0,13.0,36.5],
+    ['2012-09',38.1,9.8,4.3,0.0,12.4,35.3],
+    ['2012-10',39.8,9.7,4.5,0.0,12.2,33.9],
+    ['2012-11',40.8,9.7,4.8,0.0,11.8,32.9],
+    ['2012-12',41.8,9.8,4.8,0.0,11.5,32.1],
+    ['2013-01',43.1,9.8,4.7,0.0,11.6,30.8],
+    ['2013-02',44.2,9.9,4.6,0.0,11.3,30.0],
+    ['2013-03',44.9,10.3,4.7,0.0,10.8,29.3],
+    ['2013-04',46.0,10.6,5.1,0.0,10.5,27.8],
+    ['2013-05',47.6,10.7,5.5,0.0,9.9,26.4],
+    ['2013-06',48.8,10.8,5.6,0.0,9.4,25.4],
+    ['2013-07',50.0,10.8,5.5,0.0,9.4,24.3],
+    ['2013-08',51.5,10.9,5.5,0.0,9.2,22.9],
+    ['2013-09',52.4,10.8,5.8,0.0,8.9,22.1],
+    ['2013-10',52.7,10.6,6.2,0.0,8.9,21.5],
+    ['2013-11',53.6,10.8,6.6,0.0,8.4,20.6],
+    ['2013-12',54.7,11.1,6.7,0.0,7.8,19.7],
+    ['2014-01',55.3,11.4,6.6,0.0,7.6,19.1],
+    ['2014-02',56.4,11.6,6.8,0.0,7.3,17.9],
+    ['2014-03',57.5,11.7,7.1,0.0,7.1,16.6],
+    ['2014-04',58.0,11.9,7.4,0.0,7.2,15.6],
+    ['2014-05',58.7,12.0,7.6,0.0,7.0,14.7],
+    ['2014-06',59.8,12.0,7.7,0.0,6.7,13.8],
+    ['2014-07',60.4,11.8,7.5,0.3,6.6,13.5],
+    ['2014-08',61.0,12.0,7.6,0.2,6.0,13.2],
+    ['2014-09',61.5,12.2,8.0,0.2,5.6,12.5],
+    ['2014-10',61.7,12.2,8.3,0.3,5.6,11.9],
+    ['2014-11',62.3,12.2,8.3,0.4,5.4,11.3],
+    ['2014-12',63.3,12.6,8.0,0.5,5.4,10.3],
+    ['2015-01',63.8,13.0,7.8,0.5,5.6,9.3],
+    ['2015-02',64.5,13.1,7.8,0.4,5.3,8.9],
+    ['2015-03',65.4,13.1,8.1,0.3,4.8,8.3],
+    ['2015-04',65.7,13.2,8.2,0.4,4.7,7.7],
+    ['2015-05',65.9,13.5,8.0,0.5,4.3,7.8],
+    ['2015-06',66.4,13.4,7.6,0.6,4.1,7.8],
+    ['2015-07',67.0,13.3,7.4,0.7,4.5,7.1],
+    ['2015-08',67.2,13.4,7.4,0.7,4.4,6.8],
+    ['2015-09',67.4,13.7,7.4,0.6,4.3,6.5],
+    ['2015-10',68.2,13.9,7.3,0.6,4.4,5.6],
+    ['2015-11',69.3,14.1,7.0,0.6,4.0,5.0],
+    ['2015-12',69.7,14.4,6.5,0.8,3.6,4.9],
+    ['2016-01',69.9,14.8,6.2,1.0,3.6,4.6],
+    ['2016-02',70.2,14.9,6.2,1.1,3.4,4.2],
+    ['2016-03',69.9,14.8,6.3,1.1,3.5,4.5],
+    ['2016-04',69.8,14.7,6.1,1.0,3.9,4.6],
+    ['2016-05',70.7,14.9,5.6,1.0,3.8,4.1],
+    ['2016-06',71.4,15.0,5.1,1.0,3.5,3.9],
+    ['2016-07',71.6,15.0,4.9,1.2,3.5,3.8],
+    ['2016-08',72.3,15.2,5.1,1.4,3.1,3.0],
+    ['2016-09',72.5,15.5,5.1,1.5,2.8,2.5],
+    ['2016-10',72.1,15.8,4.8,1.5,3.1,2.6],
+    ['2016-11',72.3,16.1,4.5,1.5,3.1,2.4],
+    ['2016-12',72.6,16.2,4.2,1.5,3.2,2.3],
+    ['2017-01',71.9,16.1,4.2,1.6,3.5,2.7],
+    ['2017-02',71.8,16.1,4.4,1.8,3.2,2.8],
+    ['2017-03',72.2,16.1,4.5,2.0,2.8,2.4],
+    ['2017-04',72.6,15.8,4.4,2.1,2.8,2.3],
+    ['2017-05',73.2,15.9,4.1,2.1,2.5,2.2],
+    ['2017-06',73.4,16.4,4.1,2.1,2.5,1.5],
+    ['2017-07',72.8,16.6,4.3,2.1,3.0,1.2],
+    ['2017-08',72.2,16.5,4.7,2.2,3.0,1.4],
+    ['2017-09',71.8,16.7,4.9,2.4,2.9,1.3],
+    ['2017-10',71.3,17.0,4.8,2.6,3.0,1.3],
+    ['2017-11',71.1,17.1,4.7,2.7,2.6,1.8],
+    ['2017-12',71.5,16.8,4.9,2.7,2.2,1.8],
+    ['2018-01',71.5,16.6,5.4,2.7,2.4,1.4],
+    ['2018-02',71.1,16.6,5.8,2.7,2.3,1.4],
+    ['2018-03',70.8,16.6,6.0,2.8,2.5,1.3],
+    ['2018-04',70.9,16.6,6.0,3.0,2.9,0.6],
+    ['2018-05',70.7,16.7,6.1,3.2,2.7,0.5],
+    ['2018-06',69.8,17.1,6.5,3.3,2.5,0.9],
+    ['2018-07',69.3,17.2,7.0,3.3,2.5,0.7],
+    ['2018-08',69.2,17.2,7.4,3.2,2.1,0.8],
+    ['2018-09',68.8,17.1,7.6,3.2,2.0,1.4],
+    ['2018-10',68.6,17.0,7.5,3.2,2.4,1.3],
+    ['2018-11',68.7,17.0,7.6,3.4,2.4,0.9],
+    ['2018-12',68.3,16.7,8.0,3.5,2.5,0.9],
+    ['2019-01',67.8,16.6,8.5,3.7,2.7,0.8],
+    ['2019-02',68.0,16.8,8.9,3.7,2.3,0.2],
+    ['2019-03',68.0,17.1,8.9,3.6,2.1,0.2],
+    ['2019-04',67.6,17.3,8.8,3.6,2.1,0.6],
+    ['2019-05',67.5,17.4,9.0,3.7,1.9,0.5],
+    ['2019-06',67.1,17.3,9.2,3.8,2.0,0.7],
+    ['2019-07',66.1,17.2,9.4,3.8,2.4,1.1],
+    ['2019-08',66.0,17.2,9.5,3.9,2.4,1.0],
+    ['2019-09',66.5,17.2,9.4,3.9,2.3,0.6],
+    ['2019-10',66.7,17.1,9.2,3.9,2.4,0.7],
+    ['2019-11',67.0,17.3,9.4,3.9,2.0,0.5],
+    ['2019-12',66.9,17.5,9.7,3.9,1.8,0.1],
+    ['2020-01',66.5,17.4,9.8,4.1,2.1,0.1],
+    ['2020-02',66.4,17.3,9.6,4.2,2.0,0.5],
+    ['2020-03',66.3,17.6,9.2,4.2,2.2,0.4],
+    ['2020-04',66.0,17.8,8.9,4.1,2.6,0.6],
+    ['2020-05',66.0,17.7,8.8,4.0,2.3,1.1],
+    ['2020-06',66.4,17.7,9.0,4.0,2.1,0.9],
+    ['2020-07',66.4,17.9,9.0,4.1,2.1,0.5],
+    ['2020-08',66.5,18.1,8.8,4.2,1.8,0.5],
+    ['2020-09',67.0,18.1,8.4,4.4,1.8,0.3],
+    ['2020-10',67.2,17.9,8.1,4.4,2.3,0.1],
+    ['2020-11',67.0,18.1,8.1,4.4,2.3,0.1],
+    ['2020-12',66.6,18.2,8.1,4.3,2.3,0.5],
+    ['2021-01',66.9,18.2,7.9,4.2,2.5,0.4],
+    ['2021-02',67.3,18.3,7.5,4.2,2.1,0.6],
+    ['2021-03',67.1,18.6,7.0,4.4,1.9,1.0],
+    ['2021-04',67.1,18.8,6.8,4.5,2.0,0.7],
+    ['2021-05',67.4,18.9,6.9,4.5,1.9,0.4],
+    ['2021-06',67.2,18.8,7.0,4.5,2.1,0.4],
+    ['2021-07',67.2,18.8,6.9,4.4,2.5,0.2],
+    ['2021-08',67.8,18.9,6.4,4.4,2.4,0.1],
+    ['2021-09',68.2,18.9,6.1,4.4,2.3,0.2],
+    ['2021-10',67.9,18.7,6.0,4.5,2.3,0.5],
+    ['2021-11',68.1,18.8,6.2,4.6,1.9,0.5],
+    ['2021-12',67.7,19.0,6.3,4.6,1.8,0.7],
+    ['2022-01',67.2,19.1,6.1,4.5,2.1,1.0],
+    ['2022-02',67.5,19.4,5.9,4.5,2.1,0.6],
+    ['2022-03',67.7,19.5,5.8,4.4,2.3,0.3],
+    ['2022-04',67.4,19.4,5.9,4.4,2.6,0.4],
+    ['2022-05',67.5,19.4,6.2,4.5,2.2,0.1],
+    ['2022-06',67.6,19.2,6.4,4.7,2.0,0.1],
+    ['2022-07',67.9,18.9,6.2,4.7,2.0,0.3],
+    ['2022-08',68.0,19.0,6.1,4.6,1.8,0.6],
+    ['2022-09',67.7,19.2,6.1,4.5,1.9,0.5],
+    ['2022-10',66.9,19.2,6.5,4.4,2.3,0.7],
+    ['2022-11',66.4,19.1,6.8,4.4,2.3,1.0],
+    ['2022-12',66.3,19.3,7.0,4.5,2.3,0.5],
+    ['2023-01',66.2,19.7,7.0,4.6,2.4,0.2],
+    ['2023-02',66.5,19.7,6.9,4.6,1.9,0.3],
+    ['2023-03',67.1,19.4,7.2,4.6,1.8,0.1],
+    ['2023-04',66.9,19.1,7.6,4.4,2.0,0.1],
+    ['2023-05',66.4,19.1,7.9,4.3,1.9,0.3],
+    ['2023-06',66.0,18.9,8.0,4.3,2.1,0.6],
+    ['2023-07',65.9,18.8,7.9,4.4,2.5,0.5],
+    ['2023-08',65.6,19.0,7.9,4.5,2.3,0.8],
+    ['2023-09',65.0,19.3,8.2,4.6,2.1,0.9],
+    ['2023-10',65.1,19.4,8.5,4.5,2.1,0.4]
+  ];
+
+  /* ============ state ============ */
+  var SAMPLE_STYLE = { title:'The rise of Google Chrome', subtitle:'Web browser market share, January 2009 to October 2023', source:'Source: StatCounter GlobalStats · Get the data', note:'Annual production-based emissions of carbon dioxide (CO₂) from fuel measured in tonnes. This is based on territorial emissions, which do not account for emissions embedded in traded goods.', unit:'%' };
+  function blankStyle(title){ return { title: title||'', subtitle:'', source:'', note:'', unit:'' }; }
+  function humanizeFileName(name){
+    var base = String(name||'').replace(/\.[^./\\]+$/,'').replace(/^Sample:\s*/i,'');
+    base = base.replace(/[_-]+/g,' ').trim();
+    return base.replace(/\b\w/g, function(c){ return c.toUpperCase(); }) || 'Untitled chart';
+  }
+  var state = {
+    step: 'visualize',
+    sourceName: 'Sample data',
+    isSample: true,
+    columns: [],
+    rows: [],
+    chartType: 'line',
+    barStacked: false,
+    barHorizontal: false,
+    lineArea: false,
+    pieDonut: true,
+    maxSeries: 8,
+    mapping: { category:null, series:[], x:null, y:null, size:null, colorBy:null, value:null, rangeA:null, rangeB:null, dateGroup:'none' },
+    style: Object.assign({ showLegend:true, showLabels:true, showRightAxis:false }, SAMPLE_STYLE),
+    highlights: {},
+    annotations: [],
+    annotateArm: false,
+    rangeHighlights: [],
+    rangeArm: false,
+    tableView: false,
+    exportScale: 2
+  };
+
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+
+  /* ============ column inference & loading ============ */
+  function toNumber(v){
+    if (typeof v === 'number') return v;
+    if (v == null || v === '') return NaN;
+    var n = parseFloat(String(v).replace(/,/g,''));
+    return n;
+  }
+  // Strict, whole-string check for type inference — unlike toNumber() (used once a
+  // column is already known numeric), this must reject date-like text such as
+  // "2009-01" that parseFloat would otherwise happily read as 2009.
+  function isStrictNumeric(v){
+    if(typeof v === 'number') return Number.isFinite(v);
+    if(v == null || v==='') return false;
+    return /^-?[\d,]*\.?\d+%?$/.test(String(v).trim());
+  }
+  function inferType(values){
+    var nonEmpty = values.filter(function(v){ return v!=='' && v!=null; });
+    if(!nonEmpty.length) return 'text';
+    var numericCount = nonEmpty.filter(isStrictNumeric).length;
+    return (numericCount/nonEmpty.length) >= 0.8 ? 'number' : 'text';
+  }
+  function loadAOA(aoa, name, sample){
+    aoa = aoa.filter(function(r){ return r.some(function(c){ return c!=='' && c!=null; }); });
+    if(!aoa.length) return;
+    var headerRow = aoa[0];
+    var body = aoa.slice(1);
+    var colCount = headerRow.length;
+    var columns = [];
+    for(var c=0;c<colCount;c++){
+      var name_ = (headerRow[c]==null || headerRow[c]==='') ? ('Column '+(c+1)) : String(headerRow[c]);
+      var vals = body.map(function(r){ return r[c]; });
+      columns.push({ name:name_, type: inferType(vals) });
+    }
+    var rows = body.map(function(r){
+      var o = {};
+      columns.forEach(function(col,i){ o[col.name] = r[i]==null ? '' : r[i]; });
+      return o;
+    });
+    state.columns = columns;
+    state.rows = rows;
+    state.sourceName = name;
+    state.isSample = !!sample;
+    resetMappingDefaults();
+    state.highlights = {};
+    state.annotations = [];
+    state.rangeHighlights = [];
+    // Each fresh dataset gets its own title/subtitle/source/note/unit — never the
+    // previous chart's story (display prefs like legend/labels carry over as-is).
+    var content = sample ? SAMPLE_STYLE : blankStyle(humanizeFileName(name));
+    Object.assign(state.style, content);
+    syncStyleInputs();
+    var banner = document.getElementById('sampleBanner');
+    if(banner) banner.hidden = !state.isSample;
+  }
+  function syncStyleInputs(){
+    var ids = ['titleInput','subtitleInput','sourceInput','noteInput','unitInput'];
+    var keys = ['title','subtitle','source','note','unit'];
+    ids.forEach(function(id,i){
+      var el_ = document.getElementById(id);
+      if(el_) el_.value = state.style[keys[i]];
+    });
+  }
+  // Hand-rolled CSV parser (quoted fields, embedded commas/newlines, "" escapes, BOM).
+  // Used instead of XLSX's CSV mode, which silently sniffs date-like text (e.g. "2023-01-01")
+  // and converts it to an Excel serial number - fine for real spreadsheets but it corrupted
+  // every date category column coming from a plain CSV upload.
+  function parseCSVText(text){
+    if(text.charCodeAt(0)===0xFEFF) text = text.slice(1);
+    var rows=[], row=[], field='', inQuotes=false;
+    for(var i=0;i<text.length;i++){
+      var ch = text[i];
+      if(inQuotes){
+        if(ch==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else { inQuotes=false; } }
+        else field += ch;
+      } else {
+        if(ch==='"') inQuotes = true;
+        else if(ch===',' ){ row.push(field); field=''; }
+        else if(ch==='\r'){ /* skip; \n handled below */ }
+        else if(ch==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+        else field += ch;
+      }
+    }
+    if(field.length || row.length){ row.push(field); rows.push(row); }
+    return rows;
+  }
+  function isoDateStr(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+  function handleFile(file){
+    if(!file) return;
+    var isCSV = /\.csv$/i.test(file.name) || file.type==='text/csv';
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var aoa;
+        if(isCSV){
+          aoa = parseCSVText(String(e.target.result));
+        } else {
+          var data = new Uint8Array(e.target.result);
+          var wb = XLSX.read(data, {type:'array', cellDates:true});
+          var sheet = wb.Sheets[wb.SheetNames[0]];
+          aoa = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+          aoa = aoa.map(function(row){ return row.map(function(v){ return (v instanceof Date) ? isoDateStr(v) : v; }); });
+        }
+        loadAOA(aoa, file.name, false);
+        document.getElementById('gridCard').hidden = false;
+        renderGrid();
+        renderRecommendations();
+        document.getElementById('sourceName').textContent = state.sourceName;
+      }catch(err){
+        alert('Could not read that file. Please check it is a valid CSV or Excel file.');
+      }
+    };
+    if(isCSV) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+  }
+
+  function numericColumns(){ return state.columns.filter(function(c){ return c.type==='number'; }); }
+  function textColumns(){ return state.columns.filter(function(c){ return c.type==='text'; }); }
+
+  function resetMappingDefaults(){
+    var nums = numericColumns().map(function(c){ return c.name; });
+    var texts = textColumns().map(function(c){ return c.name; });
+    var cat = texts[0] || (state.columns[0] && state.columns[0].name);
+    state.mapping.category = cat;
+    state.mapping.series = nums.slice(0,8);
+    state.mapping.value = nums[0];
+    state.mapping.x = nums[0] || cat;
+    state.mapping.y = nums[1] || nums[0];
+    state.mapping.size = nums[2] || null;
+    state.mapping.colorBy = texts[0] || null;
+    state.mapping.rangeA = nums[0] || null;
+    state.mapping.rangeB = nums[1] || nums[0] || null;
+    state.mapping.dateGroup = 'none';
+  }
+
+  /* ============ recommendation engine ============ */
+  function looksTimeLike(colName, values){
+    if(/year|month|week|quarter|qtr|date|day|period|wk\b/i.test(colName||'')) return true;
+    var sample = values.slice(0,6).filter(function(v){return v!=='' && v!=null;});
+    if(!sample.length) return false;
+    var dateLike = sample.filter(function(v){ return !isNaN(Date.parse(v)); }).length;
+    return dateLike >= Math.ceil(sample.length*0.6);
+  }
+  var CHART_META = {
+    bar:{ label:'Bar chart', iconKey:'groupedBars' }, line:{ label:'Line chart', iconKey:'multiLines' }, pie:{ label:'Pie chart', iconKey:'pie' },
+    scatter:{ label:'Scatter plot', iconKey:'scatter' }, waterfall:{ label:'Waterfall chart', iconKey:'waterfall' }, combo:{ label:'Indexed combo chart', iconKey:'combo' },
+    heatmap:{ label:'Heatmap', iconKey:'heatmap' }
+  };
+  function recommendCharts(){
+    var nums = numericColumns().map(function(c){return c.name;});
+    var texts = textColumns().map(function(c){return c.name;});
+    var catCol = texts[0];
+    var cardinality = catCol ? new Set(state.rows.map(function(r){return r[catCol];})).size : 0;
+    var timeLike = catCol ? looksTimeLike(catCol, state.rows.map(function(r){return r[catCol];})) : false;
+    var out = [];
+
+    if(nums.length>=1 && catCol){
+      out.push({ type:'line', score: 1 + (timeLike?3:0) + (nums.length>=2?1:0),
+        reason: timeLike ? ('"'+catCol+'" reads like a sequence — a line makes the trend easy to read.') : ('Track how '+(nums.length>1?'these measures move':'this measure moves')+' across '+catCol+'.'),
+        apply:function(){ state.chartType='line'; state.lineArea=false; state.maxSeries=8; state.mapping.category=catCol; state.mapping.series=nums.slice(0,8); } });
+    }
+    if(nums.length>=1 && catCol){
+      out.push({ type:'bar', score: 2 + (cardinality<=12?2:0) + (nums.length===1?1:0) - (timeLike?1:0),
+        reason:'Compare '+(nums.length===1?nums[0]:'each measure')+' across '+cardinality+' categories, side by side.',
+        apply:function(){ state.chartType='bar'; state.barHorizontal=true; state.barStacked=false; state.maxSeries=8; state.mapping.category=catCol; state.mapping.series=nums.slice(0,8); } });
+    }
+    if(nums.length>=1 && catCol && cardinality>=2 && cardinality<=7){
+      out.push({ type:'pie', score: 3 - (cardinality>5?1:0),
+        reason: cardinality+' categories share a whole — a pie shows each slice’s part of the total.',
+        apply:function(){ state.chartType='pie'; state.mapping.category=catCol; state.mapping.value=nums[0]; } });
+    }
+    if(nums.length>=2){
+      out.push({ type:'scatter', score: 2 + (state.rows.length>=15?1:0),
+        reason:'See whether '+nums[0]+' and '+nums[1]+' move together across your '+state.rows.length+' rows.',
+        apply:function(){ state.chartType='scatter'; state.mapping.x=nums[0]; state.mapping.y=nums[1]; } });
+    }
+    if(nums.length>=1 && catCol){
+      var vals = state.rows.map(function(r){return toNumber(r[nums[0]]);});
+      var hasPos = vals.some(function(v){return v>0;}), hasNeg = vals.some(function(v){return v<0;});
+      if(hasPos && hasNeg && cardinality<=14){
+        out.push({ type:'waterfall', score: 3,
+          reason: nums[0]+' has both increases and decreases — a waterfall bridges each step to the total.',
+          apply:function(){ state.chartType='waterfall'; state.mapping.category=catCol; state.mapping.value=nums[0]; } });
+      }
+    }
+    if(nums.length>=2 && catCol){
+      var m0=d3.max(state.rows,function(r){return toNumber(r[nums[0]])||0;});
+      var m1=d3.max(state.rows,function(r){return toNumber(r[nums[1]])||0;});
+      var ratio = (m0&&m1) ? Math.max(m0/m1, m1/m0) : 1;
+      if(ratio>=4){
+        out.push({ type:'combo', score: 3,
+          reason: nums[0]+' and '+nums[1]+' sit on very different scales — indexing both to 100 makes them comparable on one axis.',
+          apply:function(){ state.chartType='combo'; state.maxSeries=8; state.mapping.category=catCol; state.mapping.series=[nums[0],nums[1]]; } });
+      }
+    }
+    if(nums.length>=2 && catCol){
+      out.push({ type:'heatmap', score: 2,
+        reason:'See all '+Math.min(nums.length,8)+' measures against '+catCol+' at a glance, shaded by value.',
+        apply:function(){ state.chartType='heatmap'; state.maxSeries=8; state.mapping.category=catCol; state.mapping.series=nums.slice(0,8); } });
+    }
+    out.sort(function(a,b){ return b.score-a.score; });
+    return out.slice(0,3);
+  }
+  function renderRecommendations(){
+    var recos = recommendCharts();
+    var panel = document.getElementById('recoPanel');
+    var wrap = document.getElementById('recoCards');
+    wrap.innerHTML='';
+    if(!recos.length){ panel.hidden=true; return; }
+    panel.hidden=false;
+    recos.forEach(function(r){
+      var card = document.createElement('div'); card.className='reco-card';
+      var icon = document.createElement('div'); icon.className='reco-icon'; icon.innerHTML = ICONS[CHART_META[r.type].iconKey];
+      var h4 = document.createElement('h4'); h4.textContent = CHART_META[r.type].label;
+      var p = document.createElement('p'); p.textContent = r.reason;
+      var btn = document.createElement('button'); btn.className='btn small primary'; btn.type='button'; btn.textContent='Use this visualization';
+      btn.addEventListener('click', function(){ state.tableView=false; r.apply(); buildTypeGrid(); goToStep('visualize'); });
+      card.appendChild(icon); card.appendChild(h4); card.appendChild(p); card.appendChild(btn);
+      wrap.appendChild(card);
+    });
+  }
+
+  /* ============ insight summary engine ============ */
+  // Reuses the same data-shaping functions the charts render from, so the summary always
+  // matches what's on screen. Each summarizer returns an array of sentences; the highlight
+  // summarizer separately covers circled marks, notes, and highlight ranges.
+  function fmtVal(n){ return Number.isFinite(n) ? fmtNum(Math.round(n*10)/10) : String(n); }
+  function pctChangeWords(first, last){
+    var delta = last-first;
+    if(Math.abs(delta) < Math.max(0.05, Math.abs(first)*0.01)) return 'stayed flat around '+fmtVal(last);
+    return (delta>0?'rose':'fell')+' from '+fmtVal(first)+' to '+fmtVal(last);
+  }
+  function pearsonR(xs, ys){
+    var n=xs.length; if(n<2) return null;
+    var mx=xs.reduce(function(a,b){return a+b;},0)/n, my=ys.reduce(function(a,b){return a+b;},0)/n;
+    var num=0, dx2=0, dy2=0;
+    for(var i=0;i<n;i++){ var dx=xs[i]-mx, dy=ys[i]-my; num+=dx*dy; dx2+=dx*dx; dy2+=dy*dy; }
+    var den = Math.sqrt(dx2*dy2);
+    return den ? num/den : null;
+  }
+  function summarizeLine(){
+    var sd = seriesData();
+    if(!sd.series.length || !sd.categories.length) return ['No data to summarize yet.'];
+    var out = [];
+    var stats = sd.series.map(function(s){
+      var first=s.values[0].value, last=s.values[s.values.length-1].value;
+      var max = s.values.reduce(function(a,b){return b.value>a.value?b:a;});
+      return {name:s.name, first:first, last:last, delta:last-first, max:max};
+    });
+    var firstCat = sd.categories[0], lastCat = sd.categories[sd.categories.length-1];
+    if(sd.series.length===1){
+      var s0=stats[0];
+      out.push(s0.name+' '+pctChangeWords(s0.first,s0.last)+' between '+firstCat+' and '+lastCat+', peaking at '+fmtVal(s0.max.value)+' ('+s0.max.category+').');
+      return out;
+    }
+    var topRiser = stats.reduce(function(a,b){return b.delta>a.delta?b:a;});
+    var topDecliner = stats.reduce(function(a,b){return b.delta<a.delta?b:a;});
+    out.push(topRiser.name+' '+pctChangeWords(topRiser.first,topRiser.last)+' from '+firstCat+' to '+lastCat+', the largest increase among '+sd.series.length+' series.');
+    if(topDecliner.delta<0 && topDecliner.name!==topRiser.name){
+      out.push(topDecliner.name+' '+pctChangeWords(topDecliner.first,topDecliner.last)+' over the same period, the largest decline.');
+      var riserSeries = sd.series.filter(function(s){return s.name===topRiser.name;})[0];
+      var declSeries = sd.series.filter(function(s){return s.name===topDecliner.name;})[0];
+      for(var i=0;i<sd.categories.length;i++){
+        if(riserSeries.values[i].value > declSeries.values[i].value){
+          if(i>0) out.push(topRiser.name+' overtook '+topDecliner.name+' around '+sd.categories[i]+'.');
+          break;
+        }
+      }
+    }
+    return out;
+  }
+  function summarizeBar(){
+    var sd = seriesData();
+    if(!sd.series.length || !sd.categories.length) return ['No data to summarize yet.'];
+    var out = [];
+    var totals = sd.series.map(function(s){
+      var total = s.values.reduce(function(a,b){return a+b.value;},0);
+      var max = s.values.reduce(function(a,b){return b.value>a.value?b:a;});
+      var min = s.values.reduce(function(a,b){return b.value<a.value?b:a;});
+      return {name:s.name, total:total, avg:total/s.values.length, max:max, min:min};
+    });
+    if(sd.series.length<=3){
+      totals.forEach(function(t){
+        out.push(t.name+' ranges from '+fmtVal(t.min.value)+' ('+t.min.category+') to '+fmtVal(t.max.value)+' ('+t.max.category+'), averaging '+fmtVal(t.avg)+'.');
+      });
+    } else {
+      var top = totals.reduce(function(a,b){return b.total>a.total?b:a;});
+      out.push(top.name+' has the highest overall total ('+fmtVal(top.total)+') among '+sd.series.length+' series, peaking at '+fmtVal(top.max.value)+' in '+top.max.category+'.');
+    }
+    return out;
+  }
+  function summarizePie(){
+    var pd = pieData();
+    if(!pd.length) return ['No data to summarize yet.'];
+    var total = pd.reduce(function(a,b){return a+b.value;},0)||1;
+    var sorted = pd.slice().sort(function(a,b){return b.value-a.value;});
+    var top = sorted[0], bottom = sorted[sorted.length-1];
+    var line = top.category+' is the largest share at '+Math.round(top.value/total*100)+'% of the total';
+    line += sorted.length>1 ? (', while '+bottom.category+' is the smallest at '+Math.round(bottom.value/total*100)+'%.') : '.';
+    return [line];
+  }
+  function summarizeScatter(){
+    var scd = scatterData();
+    if(!scd.points.length) return ['No data to summarize yet.'];
+    var xs = scd.points.map(function(p){return p.x;});
+    var ys = scd.points.map(function(p){return p.y;});
+    var r = pearsonR(xs,ys);
+    if(r==null) return ['Not enough points to measure a relationship.'];
+    var strength = Math.abs(r)>=0.7?'a strong':Math.abs(r)>=0.4?'a moderate':'a weak';
+    var direction = r<0 ? 'negative':'positive';
+    return ['Across '+scd.points.length+' points, '+state.mapping.x+' and '+state.mapping.y+' show '+strength+' '+direction+' relationship (r='+(Math.round(r*100)/100)+').'];
+  }
+  function summarizeWaterfall(){
+    var wd = waterfallData();
+    if(wd.length<2) return ['No data to summarize yet.'];
+    var steps = wd.slice(0,-1);
+    var total = wd[wd.length-1].end;
+    var biggestUp = steps.reduce(function(a,b){return b.value>a.value?b:a;}, steps[0]);
+    var biggestDown = steps.reduce(function(a,b){return b.value<a.value?b:a;}, steps[0]);
+    var ups = steps.filter(function(s){return s.value>=0;}).length;
+    var downs = steps.length-ups;
+    var out = ['Across '+steps.length+' steps, the total moves to '+fmtVal(total)+', with '+ups+' increase'+(ups===1?'':'s')+' and '+downs+' decrease'+(downs===1?'':'s')+'.'];
+    out.push(biggestUp.category+' contributes the largest single change ('+(biggestUp.value>=0?'+':'')+fmtVal(biggestUp.value)+').');
+    if(biggestDown.value<0) out.push(biggestDown.category+' has the largest decrease ('+fmtVal(biggestDown.value)+').');
+    return out;
+  }
+  function summarizeCombo(){
+    var cd = comboData();
+    if(!cd.series.length) return ['No data to summarize yet.'];
+    var out = [];
+    cd.series.forEach(function(s,i){
+      var last = s.values[s.values.length-1].indexed;
+      out.push(s.name+(i===0?' (bars)':' (line)')+' is indexed to '+fmtVal(last)+' by the end (100 = first period).');
+    });
+    return out;
+  }
+  function summarizeHeatmap(){
+    var sd = seriesData();
+    if(!sd.series.length) return ['No data to summarize yet.'];
+    var best=null, worst=null;
+    sd.series.forEach(function(s){
+      s.values.forEach(function(v){
+        if(!best || v.value>best.value) best={series:s.name, cat:v.category, value:v.value};
+        if(!worst || v.value<worst.value) worst={series:s.name, cat:v.category, value:v.value};
+      });
+    });
+    return ['The highest value is '+fmtVal(best.value)+' ('+best.series+', '+best.cat+'); the lowest is '+fmtVal(worst.value)+' ('+worst.series+', '+worst.cat+').'];
+  }
+  function summarizeRangePlot(){
+    var rd = rangeData();
+    if(!rd.length) return ['No data to summarize yet.'];
+    var biggest = rd.reduce(function(a,b){ return Math.abs(b.b-b.a)>Math.abs(a.b-a.a)?b:a; }, rd[0]);
+    return [biggest.category+' shows the largest change, from '+fmtVal(biggest.a)+' to '+fmtVal(biggest.b)+'.'];
+  }
+  function summarizeHighlights(){
+    var out = [];
+    var hiKeys = Object.keys(state.highlights);
+    if(hiKeys.length){
+      var labels = hiKeys.slice(0,3).map(function(k){ return k.replace('__',' in '); });
+      out.push('Circled: '+labels.join('; ')+(hiKeys.length>3?', and '+(hiKeys.length-3)+' more':'')+'.');
+    }
+    if(state.annotations.length){
+      var texts = state.annotations.slice(0,3).map(function(a){ return '“'+a.text+'”'; });
+      out.push('Notes: '+texts.join(', ')+(state.annotations.length>3?', and '+(state.annotations.length-3)+' more':'')+'.');
+    }
+    if(state.rangeHighlights.length && state.chartType==='line'){
+      var sd = seriesData();
+      state.rangeHighlights.slice(0,2).forEach(function(rh){
+        var aIdx = sd.categories.indexOf(rh.start), bIdx = sd.categories.indexOf(rh.end);
+        if(aIdx<0||bIdx<0) return;
+        var lo = Math.min(aIdx,bIdx), hi = Math.max(aIdx,bIdx);
+        var parts = sd.series.map(function(s){
+          var a=s.values[lo].value, b=s.values[hi].value;
+          return { text:s.name+' '+pctChangeWords(a,b), absd:Math.abs(b-a) };
+        }).sort(function(x,y){return y.absd-x.absd;}).slice(0,3).map(function(p){return p.text;});
+        out.push('Between '+rh.start+' and '+rh.end+': '+parts.join('; ')+'.');
+      });
+    }
+    return out.join(' ');
+  }
+  function generateInsightSummary(){
+    var lines;
+    if(state.chartType==='line') lines = summarizeLine();
+    else if(state.chartType==='bar') lines = summarizeBar();
+    else if(state.chartType==='pie') lines = summarizePie();
+    else if(state.chartType==='scatter') lines = summarizeScatter();
+    else if(state.chartType==='waterfall') lines = summarizeWaterfall();
+    else if(state.chartType==='combo') lines = summarizeCombo();
+    else if(state.chartType==='heatmap') lines = summarizeHeatmap();
+    else if(state.chartType==='range') lines = summarizeRangePlot();
+    else lines = ['No summary available for this chart type.'];
+    var text = lines.join(' ');
+    var hi = summarizeHighlights();
+    if(hi) text += ' ' + hi;
+    if(text.length>400) text = text.slice(0,397).replace(/\s+\S*$/,'') + '…';
+    return text;
+  }
+
+  /* ============ init ============ */
+  document.addEventListener('DOMContentLoaded', function(){
+    loadAOA(SAMPLE_AOA, 'Sample: browser market share', true);
+    var crossoverKey = 'Chrome__2012-09';
+    state.highlights[crossoverKey] = true;
+    state.annotations.push({ id: uid(), key: crossoverKey, text: 'Chrome overtakes Internet Explorer', dx: -16, dy: -50 });
+
+    buildTypeGrid();
+    buildPreviewToolbar();
+    wireTopLevel();
+    showRailTab('type');
+    renderGrid();
+    renderRecommendations();
+    goToStep('visualize');
+    document.getElementById('sampleBanner').hidden = !state.isSample;
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderChartsIfVisible);
+    new MutationObserver(renderChartsIfVisible).observe(document.documentElement,{attributes:true, attributeFilter:['data-theme']});
+    window.addEventListener('resize', renderChartsIfVisible);
+  });
+
+  function renderChartsIfVisible(){
+    if(state.step==='visualize') renderVisualize();
+    if(state.step==='publish') renderPublish();
+  }
+
+  /* ============ step nav ============ */
+  function goToStep(step){
+    state.step = step;
+    ['upload','visualize','publish'].forEach(function(s){ document.getElementById('panel-'+s).hidden = (s!==step); });
+    document.querySelectorAll('#stepNav button').forEach(function(b){
+      if(b.dataset.step===step) b.setAttribute('aria-current','step'); else b.removeAttribute('aria-current');
+    });
+    if(step==='visualize') renderVisualize();
+    if(step==='publish') renderPublish();
+  }
+
+  function wireTopLevel(){
+    document.querySelectorAll('#stepNav button').forEach(function(b){ b.addEventListener('click', function(){ goToStep(b.dataset.step); }); });
+    document.getElementById('toVisualizeBtn').addEventListener('click', function(){ goToStep('visualize'); });
+    document.getElementById('backToUploadBtn').addEventListener('click', function(){ goToStep('upload'); });
+    document.getElementById('toPublishBtn').addEventListener('click', function(){ goToStep('publish'); });
+    document.getElementById('backToVizBtn').addEventListener('click', function(){ goToStep('visualize'); });
+    document.getElementById('replaceSampleBtn').addEventListener('click', function(){ goToStep('upload'); });
+
+    var dz = document.getElementById('dropzone');
+    var fi = document.getElementById('fileInput');
+    dz.addEventListener('click', function(){ fi.click(); });
+    fi.addEventListener('change', function(e){ handleFile(e.target.files[0]); });
+    ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add('dragging'); }); });
+    ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove('dragging'); }); });
+    dz.addEventListener('drop', function(e){ var f = e.dataTransfer.files[0]; if(f){ handleFile(f); } });
+    document.getElementById('loadSampleBtn').addEventListener('click', function(){
+      loadAOA(SAMPLE_AOA, 'Sample: browser market share', true);
+      document.getElementById('gridCard').hidden = false;
+      renderGrid(); renderRecommendations();
+      document.getElementById('sourceName').textContent = state.sourceName;
+    });
+    document.getElementById('addColBtn').addEventListener('click', function(){
+      var n = state.columns.length+1;
+      state.columns.push({name:'Column '+n, type:'text'});
+      state.rows.forEach(function(r){ r['Column '+n] = ''; });
+      renderGrid();
+    });
+    document.getElementById('addRowBtn').addEventListener('click', function(){
+      var o = {}; state.columns.forEach(function(c){ o[c.name]=''; });
+      state.rows.push(o); renderGrid();
+    });
+
+    document.getElementById('toggleTableBtn').addEventListener('click', function(){
+      state.tableView = !state.tableView;
+      buildTypeGrid(); renderVisualize();
+    });
+    document.getElementById('expandBtn').addEventListener('click', function(){
+      document.querySelector('.viz-layout').classList.toggle('expanded');
+      this.setAttribute('aria-pressed', document.querySelector('.viz-layout').classList.contains('expanded'));
+      renderVisualize();
+    });
+    document.getElementById('railTabstrip').querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){ showRailTab(b.dataset.tab); });
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key==='Escape'){
+        var wasArmed = state.annotateArm || state.rangeArm;
+        state.annotateArm=false; state.rangeArm=false; updateModeHint(); closeModal();
+        if(wasArmed) renderVisualize();
+      }
+    });
+
+    ['titleInput','subtitleInput','sourceInput'].forEach(function(id){
+      document.getElementById(id).addEventListener('input', function(){
+        var key = id.replace('Input','');
+        state.style[key] = this.value;
+        renderVisualize(); renderPublish();
+      });
+    });
+    document.getElementById('noteInput').addEventListener('input', function(){ state.style.note = this.value; renderVisualize(); renderPublish(); });
+    document.getElementById('unitInput').addEventListener('input', function(){ state.style.unit = this.value; renderVisualize(); renderPublish(); });
+    document.getElementById('genInsightBtn').addEventListener('click', function(){
+      var summary = generateInsightSummary();
+      state.style.note = summary;
+      document.getElementById('noteInput').value = summary;
+      document.getElementById('insightHint').textContent = 'Generated from the current data and highlights — edit freely, or regenerate any time.';
+      renderVisualize(); renderPublish();
+    });
+    document.getElementById('titleInput').value = state.style.title;
+    document.getElementById('subtitleInput').value = state.style.subtitle;
+    document.getElementById('sourceInput').value = state.style.source;
+    document.getElementById('noteInput').value = state.style.note;
+    document.getElementById('unitInput').value = state.style.unit;
+
+    document.getElementById('exportPngBtn').addEventListener('click', function(){ openExportModal('png'); });
+    document.getElementById('exportSvgBtn').addEventListener('click', function(){ openExportModal('svg'); });
+  }
+
+  function updateModeHint(){
+    var hint = document.getElementById('modeHint');
+    if(state.annotateArm) hint.textContent = 'Click or drag on the chart to place a note. Esc to cancel.';
+    else if(state.rangeArm) hint.textContent = 'Drag across the chart to select a range. Esc to cancel.';
+    else hint.textContent = 'Click any mark to circle it in red.';
+  }
+  function showRailTab(tab){
+    state.railTab = tab;
+    ['type','refine','annotate','layout'].forEach(function(t){
+      document.getElementById('railPanel'+t.charAt(0).toUpperCase()+t.slice(1)).hidden = (t!==tab);
+    });
+    document.getElementById('railTabstrip').querySelectorAll('button').forEach(function(b){
+      b.setAttribute('aria-selected', b.dataset.tab===tab);
+    });
+  }
+
+  /* ============ upload grid ============ */
+  function renderGrid(){
+    var table = document.getElementById('dataGrid');
+    table.innerHTML = '';
+    document.getElementById('sourceName').textContent = state.sourceName;
+    if(!state.columns.length) return;
+    document.getElementById('gridCard').hidden = false;
+
+    var thead = document.createElement('thead');
+    var htr = document.createElement('tr');
+    state.columns.forEach(function(col, ci){
+      var th = document.createElement('th');
+      var nameEl = document.createElement('span');
+      nameEl.className='col-name'; nameEl.contentEditable='true'; nameEl.textContent = col.name;
+      nameEl.addEventListener('blur', function(){
+        var newName = nameEl.textContent.trim() || col.name;
+        if(newName!==col.name){ state.rows.forEach(function(r){ r[newName]=r[col.name]; delete r[col.name]; }); col.name = newName; }
+      });
+      var pill = document.createElement('span');
+      pill.className='type-pill'; pill.textContent = col.type==='number' ? '# number' : 'Abc text';
+      pill.title = 'Click to toggle column type';
+      pill.addEventListener('click', function(){ col.type = col.type==='number' ? 'text' : 'number'; renderGrid(); renderRecommendations(); });
+      var actions = document.createElement('div'); actions.className='col-actions';
+      var del = document.createElement('button'); del.type='button'; del.textContent='✕'; del.title='Delete column';
+      del.addEventListener('click', function(){ state.columns.splice(ci,1); state.rows.forEach(function(r){ delete r[col.name]; }); renderGrid(); renderRecommendations(); });
+      actions.appendChild(del);
+      th.appendChild(nameEl); th.appendChild(pill); th.appendChild(actions);
+      htr.appendChild(th);
+    });
+    htr.appendChild(document.createElement('th'));
+    thead.appendChild(htr);
+    table.appendChild(thead);
+
+    var tbody = document.createElement('tbody');
+    state.rows.forEach(function(row, ri){
+      var tr = document.createElement('tr');
+      state.columns.forEach(function(col){
+        var td = document.createElement('td');
+        td.contentEditable='true';
+        if(col.type==='number') td.className='numeric';
+        td.textContent = row[col.name];
+        td.addEventListener('blur', function(){ row[col.name] = td.textContent.trim(); });
+        tr.appendChild(td);
+      });
+      var actTd = document.createElement('td'); actTd.className='row-actions';
+      var del = document.createElement('button'); del.type='button'; del.textContent='✕'; del.title='Delete row';
+      del.addEventListener('click', function(){ state.rows.splice(ri,1); renderGrid(); renderRecommendations(); });
+      actTd.appendChild(del); tr.appendChild(actTd);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+  }
+
+  /* ============ chart type picker ============ */
+  var ICONS = {
+    barChart: '<svg viewBox="0 0 26 20"><rect x="1" y="2" width="14" height="3.4" rx="1" fill="currentColor"/><rect x="1" y="8.3" width="22" height="3.4" rx="1" fill="currentColor"/><rect x="1" y="14.6" width="9" height="3.4" rx="1" fill="currentColor"/></svg>',
+    stackedBars: '<svg viewBox="0 0 26 20"><rect x="1" y="2" width="9" height="3.4" fill="currentColor"/><rect x="11" y="2" width="7" height="3.4" fill="currentColor" opacity="0.45"/><rect x="1" y="8.3" width="14" height="3.4" fill="currentColor"/><rect x="16" y="8.3" width="8" height="3.4" fill="currentColor" opacity="0.45"/><rect x="1" y="14.6" width="6" height="3.4" fill="currentColor"/><rect x="8" y="14.6" width="5" height="3.4" fill="currentColor" opacity="0.45"/></svg>',
+    groupedBars: '<svg viewBox="0 0 26 20"><rect x="1" y="1" width="12" height="2.6" rx="1" fill="currentColor"/><rect x="1" y="4.4" width="18" height="2.6" rx="1" fill="currentColor" opacity="0.45"/><rect x="1" y="9.8" width="16" height="2.6" rx="1" fill="currentColor"/><rect x="1" y="13.2" width="9" height="2.6" rx="1" fill="currentColor" opacity="0.45"/></svg>',
+    columnChart: '<svg viewBox="0 0 26 20"><rect x="1" y="10" width="4" height="9" rx="1" fill="currentColor"/><rect x="8" y="4" width="4" height="15" rx="1" fill="currentColor"/><rect x="15" y="8" width="4" height="11" rx="1" fill="currentColor"/><rect x="22" y="1" width="4" height="18" rx="1" fill="currentColor"/></svg>',
+    stackedColumns: '<svg viewBox="0 0 26 20"><rect x="1" y="10" width="5" height="9" fill="currentColor"/><rect x="1" y="4" width="5" height="5" fill="currentColor" opacity="0.45"/><rect x="10.5" y="6" width="5" height="13" fill="currentColor"/><rect x="10.5" y="1" width="5" height="4" fill="currentColor" opacity="0.45"/><rect x="20" y="12" width="5" height="7" fill="currentColor"/><rect x="20" y="7" width="5" height="4" fill="currentColor" opacity="0.45"/></svg>',
+    groupedColumns: '<svg viewBox="0 0 26 20"><rect x="1" y="9" width="3.5" height="10" fill="currentColor"/><rect x="5.2" y="4" width="3.5" height="15" fill="currentColor" opacity="0.45"/><rect x="12" y="7" width="3.5" height="12" fill="currentColor"/><rect x="16.2" y="2" width="3.5" height="17" fill="currentColor" opacity="0.45"/></svg>',
+    line: '<svg viewBox="0 0 26 20"><polyline points="1,17 8,9 15,13 25,2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    multiLines: '<svg viewBox="0 0 26 20"><polyline points="1,15 8,7 15,11 25,3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="1,5 8,13 15,9 25,17" fill="none" stroke="currentColor" stroke-width="2" opacity="0.45" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    area: '<svg viewBox="0 0 26 20"><path d="M1,14 L8,7 L15,11 L25,3 L25,19 L1,19 Z" fill="currentColor" opacity="0.3"/><polyline points="1,14 8,7 15,11 25,3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    scatter: '<svg viewBox="0 0 26 20"><circle cx="4" cy="15" r="2.2" fill="currentColor"/><circle cx="11" cy="6" r="2.6" fill="currentColor"/><circle cx="17" cy="12" r="1.8" fill="currentColor"/><circle cx="23" cy="4" r="2.2" fill="currentColor"/></svg>',
+    range: '<svg viewBox="0 0 26 20"><line x1="3" y1="5" x2="18" y2="5" stroke="currentColor" stroke-width="2"/><circle cx="3" cy="5" r="2.4" fill="currentColor" opacity="0.5"/><circle cx="18" cy="5" r="2.4" fill="currentColor"/><line x1="6" y1="15" x2="23" y2="15" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="15" r="2.4" fill="currentColor" opacity="0.5"/><circle cx="23" cy="15" r="2.4" fill="currentColor"/></svg>',
+    pie: '<svg viewBox="0 0 26 20"><circle cx="13" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 10 L13 1 A9 9 0 0 1 21 14 Z" fill="currentColor"/></svg>',
+    donut: '<svg viewBox="0 0 26 20"><circle cx="13" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 10 L13 1 A9 9 0 0 1 21 14 Z" fill="currentColor"/><circle cx="13" cy="10" r="4" fill="var(--surface,#fff)" stroke="currentColor" stroke-width="0"/></svg>',
+    waterfall: '<svg viewBox="0 0 26 20"><rect x="1" y="12" width="4" height="7" fill="currentColor"/><rect x="8" y="4" width="4" height="8" fill="currentColor"/><rect x="15" y="9" width="4" height="6" fill="currentColor"/><rect x="22" y="1" width="4" height="18" fill="currentColor"/></svg>',
+    combo: '<svg viewBox="0 0 26 20"><rect x="2" y="11" width="4" height="8" fill="currentColor" opacity="0.5"/><rect x="11" y="7" width="4" height="12" fill="currentColor" opacity="0.5"/><rect x="20" y="9" width="4" height="10" fill="currentColor" opacity="0.5"/><polyline points="2,15 13,5 24,11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    heatmap: '<svg viewBox="0 0 26 20"><rect x="1" y="1" width="7" height="7" fill="currentColor" opacity="0.9"/><rect x="9.5" y="1" width="7" height="7" fill="currentColor" opacity="0.35"/><rect x="18" y="1" width="7" height="7" fill="currentColor" opacity="0.65"/><rect x="1" y="9.5" width="7" height="7" fill="currentColor" opacity="0.25"/><rect x="9.5" y="9.5" width="7" height="7" fill="currentColor" opacity="0.95"/><rect x="18" y="9.5" width="7" height="7" fill="currentColor" opacity="0.55"/></svg>',
+    table: '<svg viewBox="0 0 26 20"><rect x="1" y="1" width="24" height="18" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="1" y1="7.3" x2="25" y2="7.3" stroke="currentColor" stroke-width="1.2"/><line x1="1" y1="13.6" x2="25" y2="13.6" stroke="currentColor" stroke-width="1.2"/><line x1="9.5" y1="1" x2="9.5" y2="19" stroke="currentColor" stroke-width="1.2"/><line x1="18" y1="1" x2="18" y2="19" stroke="currentColor" stroke-width="1.2"/></svg>'
+  };
+  var TILES = [
+    { id:'barChart', label:'Bar Chart', icon:ICONS.barChart, active:function(){ return !state.tableView && state.chartType==='bar' && state.barHorizontal && !state.barStacked && state.maxSeries===1; },
+      apply:function(){ state.chartType='bar'; state.barHorizontal=true; state.barStacked=false; state.maxSeries=1; trimSeries(); } },
+    { id:'stackedBars', label:'Stacked Bars', icon:ICONS.stackedBars, active:function(){ return !state.tableView && state.chartType==='bar' && state.barHorizontal && state.barStacked; },
+      apply:function(){ state.chartType='bar'; state.barHorizontal=true; state.barStacked=true; state.maxSeries=8; } },
+    { id:'groupedBars', label:'Grouped Bars', icon:ICONS.groupedBars, active:function(){ return !state.tableView && state.chartType==='bar' && state.barHorizontal && !state.barStacked && state.maxSeries===8; },
+      apply:function(){ state.chartType='bar'; state.barHorizontal=true; state.barStacked=false; state.maxSeries=8; } },
+    { id:'columnChart', label:'Column Chart', icon:ICONS.columnChart, active:function(){ return !state.tableView && state.chartType==='bar' && !state.barHorizontal && !state.barStacked && state.maxSeries===1; },
+      apply:function(){ state.chartType='bar'; state.barHorizontal=false; state.barStacked=false; state.maxSeries=1; trimSeries(); } },
+    { id:'stackedColumns', label:'Stacked Columns', icon:ICONS.stackedColumns, active:function(){ return !state.tableView && state.chartType==='bar' && !state.barHorizontal && state.barStacked; },
+      apply:function(){ state.chartType='bar'; state.barHorizontal=false; state.barStacked=true; state.maxSeries=8; } },
+    { id:'groupedColumns', label:'Grouped Columns', icon:ICONS.groupedColumns, active:function(){ return !state.tableView && state.chartType==='bar' && !state.barHorizontal && !state.barStacked && state.maxSeries===8; },
+      apply:function(){ state.chartType='bar'; state.barHorizontal=false; state.barStacked=false; state.maxSeries=8; } },
+    { id:'line', label:'Line Chart', icon:ICONS.line, active:function(){ return !state.tableView && state.chartType==='line' && !state.lineArea && state.maxSeries===1; },
+      apply:function(){ state.chartType='line'; state.lineArea=false; state.maxSeries=1; trimSeries(); } },
+    { id:'multiLines', label:'Multiple Lines', icon:ICONS.multiLines, active:function(){ return !state.tableView && state.chartType==='line' && !state.lineArea && state.maxSeries===8; },
+      apply:function(){ state.chartType='line'; state.lineArea=false; state.maxSeries=8; } },
+    { id:'area', label:'Area Chart', icon:ICONS.area, active:function(){ return !state.tableView && state.chartType==='line' && state.lineArea; },
+      apply:function(){ state.chartType='line'; state.lineArea=true; state.maxSeries=8; } },
+    { id:'scatter', label:'Scatter Plot', icon:ICONS.scatter, active:function(){ return !state.tableView && state.chartType==='scatter'; },
+      apply:function(){ state.chartType='scatter'; } },
+    { id:'range', label:'Range Plot', icon:ICONS.range, active:function(){ return !state.tableView && state.chartType==='range'; },
+      apply:function(){ state.chartType='range'; } },
+    { id:'pie', label:'Pie Chart', icon:ICONS.pie, active:function(){ return !state.tableView && state.chartType==='pie' && !state.pieDonut; },
+      apply:function(){ state.chartType='pie'; state.pieDonut=false; } },
+    { id:'donut', label:'Donut Chart', icon:ICONS.donut, active:function(){ return !state.tableView && state.chartType==='pie' && state.pieDonut; },
+      apply:function(){ state.chartType='pie'; state.pieDonut=true; } },
+    { id:'waterfall', label:'Waterfall', icon:ICONS.waterfall, active:function(){ return !state.tableView && state.chartType==='waterfall'; },
+      apply:function(){ state.chartType='waterfall'; } },
+    { id:'combo', label:'Indexed Combo', icon:ICONS.combo, active:function(){ return !state.tableView && state.chartType==='combo'; },
+      apply:function(){ state.chartType='combo'; } },
+    { id:'heatmap', label:'Heatmap', icon:ICONS.heatmap, active:function(){ return !state.tableView && state.chartType==='heatmap'; },
+      apply:function(){ state.chartType='heatmap'; } },
+    { id:'table', label:'Table', icon:ICONS.table, active:function(){ return state.tableView; },
+      apply:function(){ state.tableView=true; } }
+  ];
+  function trimSeries(){ if(state.mapping.series.length>1) state.mapping.series = state.mapping.series.slice(0,1); }
+  function buildTypeGrid(){
+    var grid = document.getElementById('typeGrid');
+    grid.innerHTML='';
+    TILES.forEach(function(tile){
+      var b = document.createElement('button');
+      b.className='type-btn'; b.type='button'; b.setAttribute('aria-pressed', tile.active());
+      b.innerHTML = tile.icon + '<span>'+tile.label+'</span>';
+      b.addEventListener('click', function(){
+        if(tile.id!=='table'){ state.tableView=false; state.highlights = {}; state.annotations = []; state.rangeHighlights = []; }
+        tile.apply();
+        buildTypeGrid(); renderVisualize();
+      });
+      grid.appendChild(b);
+    });
+  }
+
+  /* ============ mapping + style panels ============ */
+  function renderMappingPanel(){
+    var wrap = document.getElementById('mappingFields');
+    wrap.innerHTML='';
+    var nums = numericColumns().map(function(c){return c.name;});
+    var texts = textColumns().map(function(c){return c.name;});
+    var allCols = state.columns.map(function(c){return c.name;});
+
+    function selectField(label, key, options, currentValue, fine){
+      var f = document.createElement('div'); f.className='field';
+      var l = document.createElement('label'); l.textContent=label; f.appendChild(l);
+      var s = document.createElement('select');
+      options.forEach(function(o){ var op = document.createElement('option'); op.value=o; op.textContent=o; if(o===currentValue) op.selected=true; s.appendChild(op); });
+      s.addEventListener('change', function(){
+        state.mapping[key]=s.value;
+        if(key==='category'){ renderMappingPanel(); }
+        renderVisualize();
+      });
+      f.appendChild(s);
+      if(fine){ var fn=document.createElement('div'); fn.className='fine'; fn.textContent=fine; f.appendChild(fn); }
+      wrap.appendChild(f);
+    }
+    // Day/Week/Month/Year rollup control - only surfaces when the mapped category
+    // column actually parses as dates (categoryIsDateLike), for chart types that
+    // read the category axis through getEffectiveRows().
+    function dateGroupField(){
+      if(!categoryIsDateLike()) return;
+      var f = document.createElement('div'); f.className='field';
+      var l = document.createElement('label'); l.textContent='Group dates by'; f.appendChild(l);
+      var grp = document.createElement('div'); grp.className='btn-group';
+      [['none','Auto'],['day','Day'],['week','Week'],['month','Month'],['year','Year']].forEach(function(opt){
+        var b = document.createElement('button'); b.type='button'; b.textContent=opt[1];
+        b.className = 'chip' + (state.mapping.dateGroup===opt[0] ? ' chip-active' : '');
+        b.addEventListener('click', function(){ state.mapping.dateGroup=opt[0]; renderMappingPanel(); renderVisualize(); renderPublish(); });
+        grp.appendChild(b);
+      });
+      f.appendChild(grp);
+      var fn=document.createElement('div'); fn.className='fine'; fn.textContent='Rolls values up to the chosen granularity (sums, or averages when the axis unit is %).'; f.appendChild(fn);
+      wrap.appendChild(f);
+    }
+    function seriesChecklist(maxNote){
+      var single = state.maxSeries===1;
+      var f2 = document.createElement('div'); f2.className='field';
+      var l2 = document.createElement('label'); l2.textContent = single ? 'Measure' : 'Series'; f2.appendChild(l2);
+      var cl = document.createElement('div'); cl.className='checklist';
+      nums.forEach(function(n){
+        var lab = document.createElement('label');
+        var cb = document.createElement('input'); cb.type = single ? 'radio' : 'checkbox'; cb.name='seriesPick';
+        cb.checked = state.mapping.series.indexOf(n)>-1;
+        cb.addEventListener('change', function(){
+          if(single){ state.mapping.series = [n]; }
+          else if(cb.checked){ if(state.mapping.series.length<8) state.mapping.series.push(n); else cb.checked=false; }
+          else{ state.mapping.series = state.mapping.series.filter(function(s){return s!==n;}); }
+          renderVisualize();
+        });
+        var sw = document.createElement('span'); sw.className='swatch';
+        sw.style.background = cats()[state.mapping.series.indexOf(n)] || 'var(--muted)';
+        var txt = document.createElement('span'); txt.textContent=n;
+        lab.appendChild(cb); lab.appendChild(sw); lab.appendChild(txt);
+        cl.appendChild(lab);
+      });
+      f2.appendChild(cl);
+      var note = maxNote || (single ? 'Pick one column to measure.' : null);
+      if(note){ var fn=document.createElement('div'); fn.className='fine'; fn.textContent=note; f2.appendChild(fn); }
+      wrap.appendChild(f2);
+    }
+
+    var h = document.createElement('h4'); h.textContent='Map your data'; h.style.marginTop='4px'; wrap.appendChild(h);
+
+    if(state.chartType==='bar' || state.chartType==='line'){
+      selectField(state.chartType==='bar' ? 'Category axis' : 'X axis (sequence)', 'category', texts.length?texts:allCols, state.mapping.category);
+      dateGroupField();
+      seriesChecklist();
+    }
+    if(state.chartType==='pie'){
+      selectField('Category', 'category', texts.length?texts:allCols, state.mapping.category);
+      dateGroupField();
+      selectField('Value', 'value', nums, state.mapping.value);
+    }
+    if(state.chartType==='scatter'){
+      selectField('X axis', 'x', nums, state.mapping.x);
+      selectField('Y axis', 'y', nums, state.mapping.y);
+      var f3=document.createElement('div'); f3.className='field';
+      var l3=document.createElement('label'); l3.textContent='Bubble size (optional)'; f3.appendChild(l3);
+      var s3=document.createElement('select');
+      var noneOpt=document.createElement('option'); noneOpt.value=''; noneOpt.textContent='None'; s3.appendChild(noneOpt);
+      nums.forEach(function(n){ var op=document.createElement('option'); op.value=n; op.textContent=n; if(n===state.mapping.size) op.selected=true; s3.appendChild(op); });
+      s3.addEventListener('change', function(){ state.mapping.size = s3.value || null; renderVisualize(); });
+      f3.appendChild(s3); wrap.appendChild(f3);
+      var f4=document.createElement('div'); f4.className='field';
+      var l4=document.createElement('label'); l4.textContent='Color by (optional)'; f4.appendChild(l4);
+      var s4=document.createElement('select');
+      var noneOpt2=document.createElement('option'); noneOpt2.value=''; noneOpt2.textContent='None'; s4.appendChild(noneOpt2);
+      texts.forEach(function(n){ var op=document.createElement('option'); op.value=n; op.textContent=n; if(n===state.mapping.colorBy) op.selected=true; s4.appendChild(op); });
+      s4.addEventListener('change', function(){ state.mapping.colorBy = s4.value || null; renderVisualize(); });
+      f4.appendChild(s4); wrap.appendChild(f4);
+    }
+    if(state.chartType==='waterfall'){
+      selectField('Step (category)', 'category', texts.length?texts:allCols, state.mapping.category);
+      dateGroupField();
+      selectField('Change in value', 'value', nums, state.mapping.value, 'Positive values step up, negative values step down.');
+    }
+    if(state.chartType==='combo'){
+      selectField('Category axis', 'category', texts.length?texts:allCols, state.mapping.category);
+      dateGroupField();
+      seriesChecklist('First series is drawn as bars; the rest as lines, all indexed to 100 at the first category.');
+    }
+    if(state.chartType==='heatmap'){
+      selectField('Row category', 'category', texts.length?texts:allCols, state.mapping.category);
+      dateGroupField();
+      seriesChecklist('Each series becomes a column, shaded by value.');
+    }
+    if(state.chartType==='range'){
+      selectField('Category', 'category', texts.length?texts:allCols, state.mapping.category);
+      dateGroupField();
+      selectField('From value', 'rangeA', nums, state.mapping.rangeA);
+      selectField('To value', 'rangeB', nums, state.mapping.rangeB);
+    }
+  }
+  function addToggle(wrap, label, value, onChange){
+    var row = document.createElement('div'); row.className='toggle-row';
+    var span = document.createElement('span'); span.textContent=label;
+    var sw = document.createElement('label'); sw.className='switch';
+    var inp = document.createElement('input'); inp.type='checkbox'; inp.checked=value;
+    inp.addEventListener('change', function(){ onChange(inp.checked); });
+    var track=document.createElement('span'); track.className='track';
+    var thumb=document.createElement('span'); thumb.className='thumb';
+    sw.appendChild(inp); sw.appendChild(track); sw.appendChild(thumb);
+    row.appendChild(span); row.appendChild(sw);
+    wrap.appendChild(row);
+  }
+  function renderRefinePanel(){
+    var wrap = document.getElementById('refineFields');
+    wrap.innerHTML='';
+    var h0 = document.createElement('h4'); h0.textContent='Chart options'; wrap.appendChild(h0);
+    if(state.chartType==='bar'){
+      addToggle(wrap, 'Stacked', state.barStacked, function(v){ state.barStacked=v; buildTypeGrid(); renderVisualize(); renderPublish(); });
+      addToggle(wrap, 'Horizontal', state.barHorizontal, function(v){ state.barHorizontal=v; buildTypeGrid(); renderVisualize(); renderPublish(); });
+    } else if(state.chartType==='line'){
+      addToggle(wrap, 'Fill area', state.lineArea, function(v){ state.lineArea=v; buildTypeGrid(); renderVisualize(); renderPublish(); });
+    } else if(state.chartType==='pie'){
+      addToggle(wrap, 'Donut', state.pieDonut, function(v){ state.pieDonut=v; buildTypeGrid(); renderVisualize(); renderPublish(); });
+    } else {
+      var none = document.createElement('p'); none.className='fine'; none.textContent='No extra options for this chart type.'; wrap.appendChild(none);
+    }
+    var h = document.createElement('h4'); h.textContent='Display'; wrap.appendChild(h);
+    addToggle(wrap, 'Legend', state.style.showLegend, function(v){ state.style.showLegend=v; renderVisualize(); renderPublish(); });
+    addToggle(wrap, 'Direct labels', state.style.showLabels, function(v){ state.style.showLabels=v; renderVisualize(); renderPublish(); });
+    var canMirror = state.chartType==='line' || (state.chartType==='bar' && !state.barHorizontal);
+    if(canMirror){
+      var h2 = document.createElement('h4'); h2.textContent='Axes'; wrap.appendChild(h2);
+      addToggle(wrap, 'Mirror value axis on right', state.style.showRightAxis, function(v){ state.style.showRightAxis=v; renderVisualize(); renderPublish(); });
+      var note = document.createElement('p'); note.className='fine';
+      note.textContent = 'Repeats the same left-hand scale on the right so both edges of a wide chart stay readable.';
+      wrap.appendChild(note);
+    }
+  }
+  function annotationLabel(a){
+    if(a.key) return a.key.replace('__',' · ');
+    if(a.xCat!=null) return a.xCat+' · '+fmtNum(a.yVal);
+    return 'Note';
+  }
+  function renderAnnotationList(){
+    var wrap = document.getElementById('annotationList');
+    wrap.innerHTML='';
+    if(!state.annotations.length){
+      var e = document.createElement('div'); e.className='empty-note';
+      e.textContent = 'No annotations yet. Click "Add text annotation", then click or drag on the chart.';
+      wrap.appendChild(e); return;
+    }
+    state.annotations.forEach(function(a){
+      var item = document.createElement('div'); item.className='annotation-item';
+      var meta = document.createElement('div'); meta.className='meta';
+      var dot = document.createElement('span'); dot.className='dot';
+      var small = document.createElement('small'); small.textContent = annotationLabel(a);
+      var del = document.createElement('button'); del.type='button'; del.textContent='✕'; del.title='Delete annotation';
+      del.addEventListener('click', function(){ state.annotations = state.annotations.filter(function(x){return x.id!==a.id;}); renderVisualize(); renderPublish(); });
+      meta.appendChild(dot); meta.appendChild(small); meta.appendChild(del);
+      var ta = document.createElement('textarea'); ta.value = a.text; ta.rows=2;
+      ta.addEventListener('input', function(){ a.text = ta.value; renderVisualize(); renderPublish(); });
+      item.appendChild(meta); item.appendChild(ta);
+      wrap.appendChild(item);
+    });
+  }
+  function renderAnnotatePanel(){
+    var isLine = state.chartType==='line';
+    var textCtl = document.getElementById('textAnnotateControl');
+    textCtl.innerHTML='';
+    var tBox = document.createElement('div'); tBox.className='create-control'+(state.annotateArm?' active':'');
+    if(state.annotateArm){
+      var tp = document.createElement('p'); tp.textContent = 'Click or drag directly on the visualization to create an annotation →'; tBox.appendChild(tp);
+      var tCancel = document.createElement('button'); tCancel.className='btn small ghost'; tCancel.type='button'; tCancel.textContent='Cancel';
+      tCancel.addEventListener('click', function(){ state.annotateArm=false; updateModeHint(); renderAnnotatePanel(); renderVisualize(); });
+      tBox.appendChild(tCancel);
+    } else {
+      var tBtn = document.createElement('button'); tBtn.className='btn small primary'; tBtn.type='button'; tBtn.textContent='+ Add text annotation';
+      tBtn.addEventListener('click', function(){ state.rangeArm=false; state.annotateArm=true; updateModeHint(); renderAnnotatePanel(); renderVisualize(); });
+      tBox.appendChild(tBtn);
+    }
+    textCtl.appendChild(tBox);
+    renderAnnotationList();
+
+    var rangeCtl = document.getElementById('rangeAnnotateControl');
+    rangeCtl.innerHTML='';
+    var rBox = document.createElement('div'); rBox.className='create-control'+(state.rangeArm?' active':'');
+    if(state.rangeArm){
+      var rp = document.createElement('p'); rp.textContent = 'Click and drag horizontally across the chart to select a range →'; rBox.appendChild(rp);
+      var rCancel = document.createElement('button'); rCancel.className='btn small ghost'; rCancel.type='button'; rCancel.textContent='Cancel';
+      rCancel.addEventListener('click', function(){ state.rangeArm=false; updateModeHint(); renderAnnotatePanel(); renderVisualize(); });
+      rBox.appendChild(rCancel);
+    } else {
+      var rBtn = document.createElement('button'); rBtn.className='btn small primary'; rBtn.type='button'; rBtn.textContent='+ Add range highlight';
+      rBtn.disabled = !isLine;
+      rBtn.addEventListener('click', function(){ state.annotateArm=false; state.rangeArm=true; updateModeHint(); renderAnnotatePanel(); renderVisualize(); });
+      rBox.appendChild(rBtn);
+      if(!isLine){ var note=document.createElement('p'); note.textContent='Switch to a line chart to add range highlights.'; rBox.appendChild(note); }
+    }
+    rangeCtl.appendChild(rBox);
+    renderRangeList();
+  }
+  function renderRangeList(){
+    var wrap = document.getElementById('rangeList');
+    wrap.innerHTML='';
+    if(!state.rangeHighlights.length){
+      var e = document.createElement('div'); e.className='empty-note';
+      e.textContent = 'No range highlights yet.';
+      wrap.appendChild(e); return;
+    }
+    var cats_ = state.chartType==='line' ? seriesData().categories : [];
+    state.rangeHighlights.forEach(function(rh){
+      var item = document.createElement('div'); item.className='range-item';
+      var sw = document.createElement('span'); sw.className='range-swatch'; sw.style.background = rh.color||'#dc7878';
+      var fields = document.createElement('div'); fields.className='range-fields';
+      var row = document.createElement('div'); row.className='row';
+      var sSel = document.createElement('select');
+      var eSel = document.createElement('select');
+      (cats_.length?cats_:[rh.start,rh.end]).forEach(function(c){
+        var o1=document.createElement('option'); o1.value=c; o1.textContent=c; if(c===rh.start) o1.selected=true; sSel.appendChild(o1);
+        var o2=document.createElement('option'); o2.value=c; o2.textContent=c; if(c===rh.end) o2.selected=true; eSel.appendChild(o2);
+      });
+      sSel.addEventListener('change', function(){ rh.start=sSel.value; renderVisualize(); renderPublish(); });
+      eSel.addEventListener('change', function(){ rh.end=eSel.value; renderVisualize(); renderPublish(); });
+      var arrow = document.createElement('span'); arrow.className='arrow'; arrow.textContent='→';
+      row.appendChild(sSel); row.appendChild(arrow); row.appendChild(eSel);
+      fields.appendChild(row);
+      var del = document.createElement('button'); del.className='del'; del.type='button'; del.textContent='✕'; del.title='Delete range';
+      del.addEventListener('click', function(){ state.rangeHighlights = state.rangeHighlights.filter(function(x){return x.id!==rh.id;}); renderVisualize(); renderPublish(); });
+      item.appendChild(sw); item.appendChild(fields); item.appendChild(del);
+      wrap.appendChild(item);
+    });
+  }
+
+  /* ============ date grouping (category axis: day/week/month/year) ============ */
+  function parseDateLoose(v){
+    if(v==null || v==='') return null;
+    if(v instanceof Date) return v;
+    var d = new Date(String(v).trim());
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Stricter than the recommendation engine's looksTimeLike (which also trusts column
+  // names like "Week") — grouping needs the values themselves to actually parse as dates.
+  function categoryIsDateLike(){
+    var catCol = state.mapping.category;
+    if(!catCol) return false;
+    var sample = state.rows.slice(0,12).map(function(r){return r[catCol];}).filter(function(v){return v!=='' && v!=null;});
+    if(!sample.length) return false;
+    var ok = sample.filter(function(v){ return parseDateLoose(v)!=null; }).length;
+    return ok/sample.length >= 0.8;
+  }
+  function pad2(n){ return n<10 ? '0'+n : ''+n; }
+  function isoWeekLabel(d){
+    var date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var day = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - day);
+    var yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+    var weekNo = Math.ceil((((date-yearStart)/86400000)+1)/7);
+    return date.getUTCFullYear()+'-W'+pad2(weekNo);
+  }
+  function dateBucketLabel(d, granularity){
+    if(granularity==='year') return String(d.getFullYear());
+    if(granularity==='month') return d.getFullYear()+'-'+pad2(d.getMonth()+1);
+    if(granularity==='week') return isoWeekLabel(d);
+    return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+  }
+  // Rows re-bucketed to the chosen granularity, numeric columns summed per bucket
+  // (averaged instead when the axis unit reads as a percentage). Chart types that use
+  // state.mapping.category read through this instead of state.rows directly, so
+  // switching Day/Week/Month/Year re-renders everything from the same source data.
+  function getEffectiveRows(){
+    var g = state.mapping.dateGroup;
+    if(!g || g==='none' || !categoryIsDateLike()) return state.rows;
+    var catCol = state.mapping.category;
+    var nums = numericColumns().map(function(c){return c.name;});
+    var useAvg = state.style.unit === '%';
+    var buckets = {}, order = [];
+    state.rows.forEach(function(r){
+      var d = parseDateLoose(r[catCol]);
+      if(!d) return;
+      var label = dateBucketLabel(d, g);
+      if(!buckets[label]){ buckets[label] = { sums:{}, counts:{} }; nums.forEach(function(n){ buckets[label].sums[n]=0; buckets[label].counts[n]=0; }); order.push(label); }
+      nums.forEach(function(n){
+        var v = toNumber(r[n]);
+        if(Number.isFinite(v)){ buckets[label].sums[n]+=v; buckets[label].counts[n]+=1; }
+      });
+    });
+    order = Array.from(new Set(order)).sort();
+    return order.map(function(label){
+      var o = {}; o[catCol] = label;
+      nums.forEach(function(n){
+        var b = buckets[label];
+        o[n] = useAvg ? (b.counts[n] ? b.sums[n]/b.counts[n] : 0) : b.sums[n];
+      });
+      return o;
+    });
+  }
+
+  /* ============ data shaping ============ */
+  function seriesData(){
+    var colNames = state.mapping.series.length ? state.mapping.series : numericColumns().map(function(c){return c.name;}).slice(0,1);
+    var palette = cats();
+    var catCol = state.mapping.category;
+    var rows = getEffectiveRows();
+    var cats_ = rows.map(function(r){ return String(r[catCol]); });
+    var series = colNames.map(function(name, i){
+      return { name: name, color: palette[i % palette.length],
+        values: rows.map(function(r){
+          var v = toNumber(r[name]); if(!Number.isFinite(v)) v=0;
+          return { category: String(r[catCol]), value: v, key: name+'__'+String(r[catCol]) };
+        }) };
+    });
+    return { categories: cats_, series: series };
+  }
+  function comboData(){
+    var sd = seriesData();
+    sd.series.forEach(function(s){
+      var base = s.values.length ? s.values[0].value : 0;
+      if(!base){ var found=null; for(var i=0;i<s.values.length;i++){ if(s.values[i].value){ found=s.values[i].value; break; } } base = found || 1; }
+      s.values.forEach(function(v){ v.indexed = base ? (v.value/base*100) : 100; });
+    });
+    return sd;
+  }
+  function waterfallData(){
+    var catCol = state.mapping.category, valCol = state.mapping.value;
+    var acc = 0;
+    var items = getEffectiveRows().map(function(r){
+      var v = toNumber(r[valCol]); if(!Number.isFinite(v)) v=0;
+      var start = acc; acc += v;
+      return { category:String(r[catCol]), value:v, start:start, end:acc, key:'wf__'+String(r[catCol]) };
+    });
+    items.push({ category:'Total', value:acc, start:0, end:acc, key:'wf__Total', isTotal:true });
+    return items;
+  }
+  function pieData(){
+    var catCol = state.mapping.category, valCol = state.mapping.value;
+    var palette = cats();
+    return getEffectiveRows().map(function(r,i){
+      var v = toNumber(r[valCol]); if(!Number.isFinite(v)) v=0;
+      return { category:String(r[catCol]), value:v, key:'slice__'+String(r[catCol]), color: palette[i % palette.length] };
+    });
+  }
+  function scatterData(){
+    var xCol=state.mapping.x, yCol=state.mapping.y, sizeCol=state.mapping.size, colorCol=state.mapping.colorBy;
+    var palette = cats();
+    var groups = {};
+    var pts = state.rows.map(function(r,i){
+      var g = colorCol ? String(r[colorCol]) : '__all__';
+      if(groups[g]===undefined) groups[g]=Object.keys(groups).length;
+      return { x: toNumber(r[xCol]) || 0, y: toNumber(r[yCol]) || 0, size: sizeCol ? (toNumber(r[sizeCol])||0) : null, group: g, key:'pt__'+i };
+    });
+    var groupNames = Object.keys(groups);
+    pts.forEach(function(p){ p.color = palette[groups[p.group] % palette.length]; });
+    return { points: pts, groups: groupNames };
+  }
+  function rangeData(){
+    var catCol = state.mapping.category, aCol = state.mapping.rangeA, bCol = state.mapping.rangeB;
+    return getEffectiveRows().map(function(r){
+      var a = toNumber(r[aCol]); if(!Number.isFinite(a)) a=0;
+      var b = toNumber(r[bCol]); if(!Number.isFinite(b)) b=0;
+      return { category:String(r[catCol]), a:a, b:b, key:'rg__'+String(r[catCol]) };
+    });
+  }
+
+  function pruneStaleRefs(validKeys){
+    var keys = {}; validKeys.forEach(function(k){ keys[k]=true; });
+    var nh = {}; Object.keys(state.highlights).forEach(function(k){ if(keys[k]) nh[k]=true; });
+    state.highlights = nh;
+    // Mark-anchored annotations (a.key) are pruned when their mark disappears;
+    // free-position annotations (a.xCat/a.yVal, from clicking blank chart space) have no key and always survive.
+    state.annotations = state.annotations.filter(function(a){ return a.key ? keys[a.key] : true; });
+  }
+
+  /* ============ SVG helpers ============ */
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function el(name, attrs, parent){
+    var n = document.createElementNS(SVGNS, name);
+    if(attrs) Object.keys(attrs).forEach(function(k){ n.setAttribute(k, attrs[k]); });
+    if(parent) parent.appendChild(n);
+    return n;
+  }
+  function textEl(parent, x, y, str, attrs){
+    var base = { 'font-family': SANS };
+    var t = el('text', Object.assign({x:x,y:y}, base, attrs||{}), parent);
+    t.textContent = str;
+    return t;
+  }
+  function roundedTopRect(x,y,w,h,r){
+    r = Math.min(r, w/2, h);
+    if(h<=0) return 'M'+x+','+(y+h)+' L'+(x+w)+','+(y+h)+' Z';
+    return ['M',x,y+h,'L',x,y+r,'Q',x,y,x+r,y,'L',x+w-r,y,'Q',x+w,y,x+w,y+r,'L',x+w,y+h,'Z'].join(' ');
+  }
+  function roundedRightRect(x,y,w,h,r){
+    r = Math.min(r, h/2, w);
+    if(w<=0) return 'M'+x+','+y+' L'+x+','+(y+h)+' Z';
+    return ['M',x,y,'L',x+w-r,y,'Q',x+w,y,x+w,y+r,'L',x+w,y+h-r,'Q',x+w,y+h,x+w-r,y+h,'L',x,y+h,'Z'].join(' ');
+  }
+  function flatRect(x,y,w,h){ return ['M',x,y,'L',x+w,y,'L',x+w,y+h,'L',x,y+h,'Z'].join(' '); }
+  function measureWidth(str, size, weight){ return str.length * size * (weight>=600 ? 0.58 : 0.53); }
+  function wrapByWidth(str, maxWidth, size, weight){
+    var words = str.split(/\s+/).filter(Boolean);
+    var lines = []; var cur = '';
+    words.forEach(function(w){
+      var next = cur ? cur+' '+w : w;
+      if(measureWidth(next, size, weight) > maxWidth && cur){ lines.push(cur); cur = w; } else cur = next;
+    });
+    if(cur) lines.push(cur);
+    return lines;
+  }
+
+  /* ============ tooltip ============ */
+  var tipEl = null;
+  function ensureTooltip(container){
+    tipEl = container.querySelector('.tooltip');
+    if(!tipEl){ tipEl = document.createElement('div'); tipEl.className='tooltip'; tipEl.hidden=true; container.appendChild(tipEl); }
+    return tipEl;
+  }
+  function showTooltip(container, x, y, rows){
+    var t = ensureTooltip(container);
+    t.innerHTML='';
+    rows.forEach(function(r){
+      var row = document.createElement('div'); row.className='row';
+      if(r.color){ var k=document.createElement('span'); k.className='key'; k.style.background=r.color; row.appendChild(k); }
+      var name = document.createElement('span'); name.className='name'; name.textContent=r.name+': ';
+      var val = document.createElement('span'); val.className='val'; val.textContent=r.value;
+      row.appendChild(name); row.appendChild(val);
+      t.appendChild(row);
+    });
+    t.style.left = x+'px'; t.style.top = y+'px';
+    t.hidden=false;
+  }
+  function hideTooltip(){ if(tipEl) tipEl.hidden=true; }
+
+  /* ============ core chart renderer ============ */
+  function buildChart(container, opts){
+    var interactive = opts.interactive;
+    container.innerHTML='';
+    var W = 900;
+    var t = theme();
+    var titleH = state.style.title ? 34 : 0;
+    var subtitleH = state.style.subtitle ? 24 : 0;
+    var noteLines = state.style.note ? wrapByWidth(state.style.note, W-48, 11.5, 400) : [];
+    var plotH = state.chartType==='heatmap' ? 340 : 380;
+    var legendH = 0;
+
+    var needsLegend = state.style.showLegend;
+    var chartType = state.chartType;
+    var sd, pd, scd, wd, cd, rd;
+    if(chartType==='bar'){ sd = seriesData(); needsLegend = needsLegend && sd.series.length>=2; }
+    if(chartType==='line'){ sd = seriesData(); needsLegend = false; }
+    if(chartType==='pie'){ pd = pieData(); needsLegend = needsLegend && pd.length>=2; }
+    if(chartType==='scatter'){ scd = scatterData(); needsLegend = needsLegend && scd.groups.length>=2 && scd.groups[0]!=='__all__'; }
+    if(chartType==='waterfall'){ wd = waterfallData(); needsLegend = false; }
+    if(chartType==='combo'){ cd = comboData(); needsLegend = needsLegend && cd.series.length>=2; }
+    if(chartType==='heatmap'){ sd = seriesData(); needsLegend = false; legendH = 40; }
+    if(chartType==='range'){ rd = rangeData(); needsLegend = true; }
+    if(needsLegend) legendH = 34;
+
+    var headerH = 22 + titleH + subtitleH + 16;
+    var footerGap = noteLines.length ? 18 : 10;
+    var footerBlockH = noteLines.length*16;
+    var totalH = headerH + plotH + legendH + footerGap + footerBlockH + 40;
+    var svg = el('svg', { viewBox:'0 0 '+W+' '+totalH, width:W, height:totalH, role:'img', 'aria-label': (state.style.title||'Chart') });
+    container.appendChild(svg);
+    el('rect', {x:0,y:0,width:W,height:totalH,fill:t.surface}, svg);
+
+    var y0 = 22;
+    if(state.style.title){ textEl(svg, 24, y0, state.style.title, {'font-size':22,'font-weight':700,fill:t.ink}); y0+=titleH; }
+    if(state.style.subtitle){ textEl(svg, 24, y0, state.style.subtitle, {'font-size':14.5,fill:t.inkSoft}); y0+=subtitleH; }
+    y0 += 16;
+
+    var plotTop = y0, plotBottom = y0+plotH;
+    var plotG = el('g', {}, svg);
+    var plotPoints = [];
+    var freeAnchors = {};
+    var manyBarCats = chartType==='bar' && !state.barHorizontal && sd && sd.categories.length>10;
+    var PL = 56, PR = 24, PT_ = 10, PB = manyBarCats ? 70 : 30;
+    if(chartType==='line' && state.style.showLabels) PR = 92;
+    else if((chartType==='line' || (chartType==='bar' && !state.barHorizontal)) && state.style.showRightAxis) PR = Math.max(PR, 48);
+
+    if(chartType==='bar'){ plotPoints = drawBar(plotG, sd, { x:PL, y:plotTop+PT_, w:W-PL-PR, h:plotH-PT_-PB, t:t, interactive:interactive }); }
+    else if(chartType==='line'){
+      var lineResult = drawLine(plotG, sd, { x:PL, y:plotTop+PT_, w:W-PL-PR, h:plotH-PT_-PB, t:t, interactive:interactive });
+      plotPoints = lineResult.points; freeAnchors = lineResult.freeAnchors;
+    }
+    else if(chartType==='pie'){ plotPoints = drawPie(plotG, pd, { cx:W/2, cy:plotTop+plotH/2, r:Math.min(plotH,W*0.55)/2 - 20, t:t, interactive:interactive }); }
+    else if(chartType==='scatter'){ plotPoints = drawScatter(plotG, scd, { x:PL, y:plotTop+PT_, w:W-PL-PR, h:plotH-PT_-PB, t:t, interactive:interactive }); }
+    else if(chartType==='waterfall'){ plotPoints = drawWaterfall(plotG, wd, { x:PL, y:plotTop+PT_, w:W-PL-PR, h:plotH-PT_-PB-16, t:t, interactive:interactive }); }
+    else if(chartType==='combo'){ plotPoints = drawCombo(plotG, cd, { x:PL, y:plotTop+PT_, w:W-PL-PR, h:plotH-PT_-PB-16, t:t, interactive:interactive }); }
+    else if(chartType==='heatmap'){ plotPoints = drawHeatmap(plotG, sd, { x:PL+20, y:plotTop+PT_+20, w:W-PL-PR-20, h:plotH-PT_-PB-20, t:t, interactive:interactive }); }
+    else if(chartType==='range'){ plotPoints = drawRange(plotG, rd, { x:PL, y:plotTop+PT_, w:W-PL-PR, h:plotH-PT_-PB, t:t, interactive:interactive }); }
+    pruneStaleRefs(plotPoints.map(function(p){return p.key;}));
+
+    var legendY = plotBottom + 6;
+    if(chartType==='heatmap'){
+      var allVals=[]; sd.series.forEach(function(s){ s.values.forEach(function(v){allVals.push(v.value);}); });
+      drawSequentialKey(svg, d3.min(allVals)||0, d3.max(allVals)||1, W/2, legendY+16, t);
+    } else if(needsLegend){
+      var legendItems;
+      if(chartType==='pie') legendItems = pd.map(function(s){return {name:s.category, color:s.color};});
+      else if(chartType==='scatter') legendItems = scd.groups.map(function(g,i){return {name:g, color: cats()[i%8]};});
+      else if(chartType==='combo') legendItems = cd.series.map(function(s,i){return {name:s.name+(i===0?' (bars)':' (line)'), color:s.color};});
+      else if(chartType==='range') legendItems = [{name:state.mapping.rangeA+' (from)', color:t.muted},{name:state.mapping.rangeB+' (to)', color:t.navy}];
+      else legendItems = sd.series.map(function(s){return {name:s.name, color:s.color};});
+      drawLegend(svg, legendItems, W/2, legendY+10, W-48, t);
+    }
+
+    var footTop = plotBottom + legendH + footerGap;
+    noteLines.forEach(function(line, i){ textEl(svg, 24, footTop + i*16, line, {'font-size':11.5, fill:t.muted, 'font-style':'italic'}); });
+    var sourceY = footTop + footerBlockH + (noteLines.length ? 16 : 0);
+    var sx = 24;
+    if(state.style.source){
+      textEl(svg, sx, sourceY, state.style.source, {'font-size':11.5, fill:t.muted});
+      sx += measureWidth(state.style.source, 11.5, 400) + 8;
+      textEl(svg, sx, sourceY, '· Created with Chart Studio', {'font-size':11.5, fill:t.accent||t.navy});
+    } else {
+      textEl(svg, sx, sourceY, 'Created with Chart Studio', {'font-size':11.5, fill:t.accent||t.navy});
+    }
+
+    drawAnnotations(svg, plotG, plotPoints, interactive, freeAnchors);
+    if(interactive){ wireInteractivity(container, svg, plotPoints); }
+    return svg;
+  }
+
+  function drawSequentialKey(svg, minV, maxV, cx, y, t){
+    var totalW = 160, swW = totalW/SEQ_BLUE.length;
+    var x0 = cx-totalW/2;
+    SEQ_BLUE.forEach(function(c,i){ el('rect', {x:x0+i*swW, y:y-7, width:swW, height:14, fill:c}, svg); });
+    textEl(svg, x0-8, y+4, fmtNum(minV), {'font-size':11, fill:t.muted, 'text-anchor':'end'});
+    textEl(svg, x0+totalW+8, y+4, fmtNum(maxV), {'font-size':11, fill:t.muted, 'text-anchor':'start'});
+  }
+
+  function drawLegend(svg, items, cx, y, maxWidth, t){
+    var fontSize = 12.5, gap = 18, swatch = 11;
+    var widths = items.map(function(it){ return swatch+6+measureWidth(it.name, fontSize, 500); });
+    var rows = []; var cur = []; var curW = 0;
+    items.forEach(function(it,i){
+      var w = widths[i] + (cur.length? gap:0);
+      if(curW + w > maxWidth && cur.length){ rows.push(cur); cur=[]; curW=0; }
+      cur.push(it); curW += widths[i] + (cur.length>1? gap:0);
+    });
+    if(cur.length) rows.push(cur);
+    rows.forEach(function(row, ri){
+      var rowWidth = row.reduce(function(a,it,i){ return a + widths[items.indexOf(it)] + (i? gap:0); }, 0);
+      var x = cx - rowWidth/2;
+      row.forEach(function(it){
+        var g = el('g', {}, svg);
+        el('rect', {x:x, y:y+ri*20-9, width:swatch, height:swatch, rx:2.5, fill:it.color}, g);
+        textEl(g, x+swatch+6, y+ri*20, it.name, {'font-size':fontSize, fill:t.inkSoft});
+        x += widths[items.indexOf(it)] + gap;
+      });
+    });
+  }
+
+  function drawAnnotations(svg, plotG, plotPoints, interactive, freeAnchors){
+    var t = theme();
+    freeAnchors = freeAnchors || {};
+    var byKey = {}; plotPoints.forEach(function(p){ byKey[p.key]=p; });
+    state.annotations.forEach(function(a){
+      var p = a.key ? byKey[a.key] : freeAnchors[a.id];
+      if(!p) return;
+      var lx = p.x + a.dx, ly = p.y + a.dy;
+      var g = el('g', { 'class':'ann', 'data-id':a.id }, svg);
+      el('line', {x1:p.x, y1:p.y, x2:lx, y2:ly, stroke:t.mark, 'stroke-width':1.4}, g);
+      el('circle', {cx:p.x, cy:p.y, r:2.5, fill:t.mark}, g);
+      var words = a.text || '';
+      var padX=8, padY=6, lh=14, fs=12;
+      var lines = wrapText(words, 26);
+      var boxW = Math.min(200, Math.max.apply(null, lines.map(function(l){return measureWidth(l,fs,500);}).concat([20])) + padX*2);
+      var boxH = lines.length*lh + padY*2;
+      var bx = lx - (lx > p.x ? 0 : boxW), by = ly - boxH/2;
+      bx = Math.max(4, Math.min(bx, 900-boxW-4));
+      el('rect', {x:bx, y:by, width:boxW, height:boxH, rx:6, fill:t.surface, stroke:t.mark, 'stroke-width':1, 'fill-opacity':0.97}, g);
+      lines.forEach(function(l,i){ textEl(g, bx+padX, by+padY+ (i+1)*lh - 3, l, {'font-size':fs, fill:t.ink}); });
+      if(interactive){
+        g.style.cursor='grab';
+        var drag = d3.drag().container(function(){ return svg; })
+          .on('start', function(){ g.style.cursor='grabbing'; })
+          .on('drag', function(event){ a.dx += event.dx; a.dy += event.dy; renderVisualize(); })
+          .on('end', function(){ g.style.cursor='grab'; });
+        d3.select(g).call(drag);
+      }
+    });
+  }
+  function wrapText(str, maxChars){
+    var words = str.split(/\s+/).filter(Boolean);
+    var lines = []; var cur='';
+    words.forEach(function(w){
+      var next = cur ? cur+' '+w : w;
+      if(next.length>maxChars && cur){ lines.push(cur); cur=w; } else cur=next;
+    });
+    if(cur) lines.push(cur);
+    if(!lines.length) lines=[''];
+    return lines.slice(0,4);
+  }
+  function highlightRing(parent, shapeType, box, t){
+    if(shapeType==='rect'){ el('rect', {x:box.x-3, y:box.y-3, width:box.w+6, height:box.h+3, rx: (box.rx||4)+2, fill:'none', stroke:t.mark, 'stroke-width':2}, parent); }
+    else if(shapeType==='circle'){ el('circle', {cx:box.cx, cy:box.cy, r:box.r+5, fill:'none', stroke:t.mark, 'stroke-width':2}, parent); }
+  }
+  function relativeLuminance(hex){
+    var c = hex.replace('#','');
+    var r=parseInt(c.substr(0,2),16)/255, gg=parseInt(c.substr(2,2),16)/255, b=parseInt(c.substr(4,2),16)/255;
+    return 0.2126*r+0.7152*gg+0.0722*b;
+  }
+  function fmtNum(n){
+    n = Math.round(n*100)/100;
+    if(Math.abs(n)>=1000) return n.toLocaleString('en-US');
+    return String(n);
+  }
+  // Only the topmost gridline carries the unit, e.g. "60%" then bare 50/40/30 — matches the reference exhibit.
+  function tickLabel(tk, allTicks){
+    var isTop = allTicks.length && tk === allTicks[allTicks.length-1];
+    return fmtNum(tk) + (isTop && state.style.unit ? state.style.unit : '');
+  }
+
+  /* ---- bar ---- */
+  function drawBar(g, sd, o){
+    var points = [];
+    var horizontal = state.barHorizontal;
+    var stacked = state.barStacked && sd.series.length>1;
+    var maxVal;
+    if(stacked){ maxVal = d3.max(sd.categories, function(cat,ci){ return d3.sum(sd.series, function(s){ return s.values[ci].value; }); }); }
+    else { maxVal = d3.max(sd.series, function(s){ return d3.max(s.values, function(v){return v.value;}); }); }
+    maxVal = maxVal || 1;
+    var valueScale = d3.scaleLinear().domain([0, maxVal]).nice().range(horizontal? [0,o.w] : [o.h,0]);
+    var catScale = d3.scaleBand().domain(sd.categories).range(horizontal? [0,o.h] : [0,o.w]).paddingInner(0.28).paddingOuter(0.14);
+
+    var barTicks = valueScale.ticks(5);
+    barTicks.forEach(function(tk){
+      if(horizontal){
+        var gx = o.x + valueScale(tk);
+        el('line', {x1:gx,y1:o.y,x2:gx,y2:o.y+o.h, stroke:o.t.grid, 'stroke-width':1}, g);
+        textEl(g, gx, o.y+o.h+16, tickLabel(tk,barTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'middle'});
+      } else {
+        var gy = o.y + valueScale(tk);
+        el('line', {x1:o.x,y1:gy,x2:o.x+o.w,y2:gy, stroke:o.t.grid, 'stroke-width':1}, g);
+        textEl(g, o.x-8, gy+3, tickLabel(tk,barTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'end'});
+        if(state.style.showRightAxis){ textEl(g, o.x+o.w+8, gy+3, tickLabel(tk,barTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'start'}); }
+      }
+    });
+    // Many columns: rotate labels so they don't run into each other, and if they'd still
+    // be too tight even rotated, show only every Nth one rather than an unreadable smear.
+    var catCount = sd.categories.length;
+    var bandW0 = catScale.bandwidth();
+    var estLabelW = d3.max(sd.categories, function(c){ return measureWidth(String(c), 11.5, 400); }) || 0;
+    var needsRotate = !horizontal && (catCount>10 || estLabelW > bandW0*1.4);
+    var tickStride = 1;
+    if(needsRotate && bandW0*tickStride < 16){ tickStride = Math.ceil(16/Math.max(bandW0,1)); }
+    sd.categories.forEach(function(cat, ci){
+      var band = catScale(cat), bw = catScale.bandwidth();
+      if(horizontal){ textEl(g, o.x-8, o.y+band+bw/2+4, cat, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'end'}); return; }
+      if(ci % tickStride !== 0) return;
+      if(needsRotate){
+        var bx=o.x+band+bw/2, by=o.y+o.h+12;
+        textEl(g, bx, by, cat, {'font-size':10.5, fill:o.t.inkSoft, 'text-anchor':'end', transform:'rotate(-40 '+bx+' '+by+')'});
+      } else {
+        textEl(g, o.x+band+bw/2, o.y+o.h+16, cat, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'middle'});
+      }
+    });
+    if(horizontal) el('line', {x1:o.x,y1:o.y,x2:o.x,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
+    else el('line', {x1:o.x,y1:o.y+o.h,x2:o.x+o.w,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
+
+    var subScale = d3.scaleBand().domain(sd.series.map(function(s){return s.name;})).range([0, catScale.bandwidth()]).paddingInner(0.12);
+    var GAP=2;
+    sd.categories.forEach(function(cat, ci){
+      var band = catScale(cat), bw = catScale.bandwidth();
+      var stackAcc = 0;
+      sd.series.forEach(function(s, si){
+        var v = s.values[ci];
+        var isHi = !!state.highlights[v.key];
+        var isOuterEnd = stacked ? (si === sd.series.length-1) : true;
+        var isBaseEnd = stacked ? (si === 0) : true;
+        var thick, offset;
+        if(stacked){ thick = bw; offset = 0; } else { thick = Math.min(subScale.bandwidth(), 24); offset = subScale(s.name) + (subScale.bandwidth()-thick)/2; }
+        var mark, box;
+        if(horizontal){
+          var barLen, barStart;
+          if(stacked){ barStart = o.x + valueScale(stackAcc); barLen = valueScale(stackAcc+v.value)-valueScale(stackAcc); stackAcc+=v.value; }
+          else { barStart = o.x + valueScale(0); barLen = valueScale(v.value)-valueScale(0); }
+          var insetStart = isBaseEnd?0:GAP/2, insetEnd = isOuterEnd?0:GAP/2;
+          var bx0 = barStart+insetStart, blen = Math.max(barLen-insetStart-insetEnd,0);
+          var by = o.y+band+offset+GAP/2, bh=thick-GAP;
+          var d = isOuterEnd ? roundedRightRect(bx0, by, blen, Math.max(bh,0), 4) : flatRect(bx0, by, blen, Math.max(bh,0));
+          mark = el('path', {d:d, fill:s.color}, g);
+          box = {x:bx0,y:by,w:blen,h:bh,rx: isOuterEnd?4:0};
+          points.push({key:v.key, x:barStart+barLen, y:by+bh/2, seriesName:s.name, category:cat, value:v.value, shape:'rect', box:box});
+        } else {
+          var barH, barTop;
+          if(stacked){ barTop = o.y+valueScale(stackAcc+v.value); barH = valueScale(stackAcc)-valueScale(stackAcc+v.value); stackAcc+=v.value; }
+          else { barTop = o.y+valueScale(v.value); barH = valueScale(0)-valueScale(v.value); }
+          var insetTop = isOuterEnd?0:GAP/2, insetBottom = isBaseEnd?0:GAP/2;
+          var byTop = barTop+insetTop, bh2 = Math.max(barH-insetTop-insetBottom,0);
+          var bx = o.x+band+offset+GAP/2, bw2=thick-GAP;
+          var d2 = isOuterEnd ? roundedTopRect(bx, byTop, Math.max(bw2,0), bh2, 4) : flatRect(bx, byTop, Math.max(bw2,0), bh2);
+          mark = el('path', {d:d2, fill:s.color}, g);
+          box = {x:bx,y:byTop,w:bw2,h:bh2,rx: isOuterEnd?4:0};
+          points.push({key:v.key, x:bx+bw2/2, y:byTop, seriesName:s.name, category:cat, value:v.value, shape:'rect', box:box});
+        }
+        mark.setAttribute('data-key', v.key);
+        if(isHi) highlightRing(g, 'rect', points[points.length-1].box, o.t);
+      });
+    });
+    if(state.style.showLabels && !stacked && sd.series.length<=3){
+      sd.series.forEach(function(s){
+        var top = s.values.reduce(function(a,b){return b.value>a.value?b:a;}, s.values[0]);
+        var p = points.find(function(pp){ return pp.key===top.key; });
+        if(!p) return;
+        if(horizontal) textEl(g, p.x+6, p.y+4, fmtNum(top.value), {'font-family':MONO,'font-size':11, fill:o.t.inkSoft});
+        else textEl(g, p.x, p.y-8, fmtNum(top.value), {'font-family':MONO,'font-size':11, fill:o.t.inkSoft, 'text-anchor':'middle'});
+      });
+    }
+    return points;
+  }
+
+  /* ---- line ---- */
+  // "2009-03" -> "2009 Q1"; anything else passes through unchanged.
+  function monthToQuarterLabel(cat){
+    if(!/^\d{4}-\d{2}$/.test(cat)) return cat;
+    var year = cat.slice(0,4), month = parseInt(cat.slice(5,7),10);
+    return year+' Q'+Math.ceil(month/3);
+  }
+  function drawLine(g, sd, o){
+    var points = [];
+    var freeAnchors = {};
+    var maxVal = d3.max(sd.series, function(s){ return d3.max(s.values, function(v){return v.value;}); }) || 1;
+    var x = d3.scalePoint().domain(sd.categories).range([0,o.w]).padding(0.5);
+    var y = d3.scaleLinear().domain([0, maxVal]).nice().range([o.h,0]);
+
+    // Highlight ranges paint first, so gridlines and series draw on top of them.
+    state.rangeHighlights.forEach(function(rh){
+      var xA = x(rh.start), xB = x(rh.end);
+      if(xA==null || xB==null) return; // category no longer exists in this data
+      var left = o.x+Math.min(xA,xB), width = Math.max(Math.abs(xB-xA), 2);
+      el('rect', {x:left, y:o.y, width:width, height:o.h, fill: rh.color||o.t.mark, 'fill-opacity': rh.opacity!=null?rh.opacity:0.18}, g);
+    });
+
+    var lineTicks = y.ticks(5);
+    lineTicks.forEach(function(tk){
+      var gy = o.y + y(tk);
+      el('line', {x1:o.x,y1:gy,x2:o.x+o.w,y2:gy, stroke:o.t.grid, 'stroke-width':1}, g);
+      textEl(g, o.x-8, gy+3, tickLabel(tk,lineTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'end'});
+      if(state.style.showRightAxis){ textEl(g, o.x+o.w+8, gy+3, tickLabel(tk,lineTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'start'}); }
+    });
+
+    // Dense axes (e.g. monthly data) get a handful of evenly spaced ticks instead of
+    // one label per category; monthly-shaped categories snap to January of even years.
+    var catCount = sd.categories.length;
+    var isMonthly = catCount>0 && sd.categories.every(function(c){ return /^\d{4}-\d{2}$/.test(c); });
+    var tickIdxs = [];
+    if(catCount<=14){
+      for(var i=0;i<catCount;i++) tickIdxs.push(i);
+    } else if(isMonthly){
+      sd.categories.forEach(function(cat,i){
+        if(parseInt(cat.slice(5,7),10)===1 && parseInt(cat.slice(0,4),10)%2===0) tickIdxs.push(i);
+      });
+      if(!tickIdxs.length){
+        var stride0 = Math.max(1, Math.ceil(catCount/7));
+        for(var j=0;j<catCount;j+=stride0) tickIdxs.push(j);
+      }
+    } else {
+      var stride = Math.max(1, Math.ceil(catCount/7));
+      for(var k=0;k<catCount;k+=stride) tickIdxs.push(k);
+    }
+    // Quarter-folding only makes sense once ticks have been thinned to more than a
+    // month apart - at full monthly resolution (catCount<=14) it turned 3 neighboring
+    // months into 3 duplicate "20XX Q1" labels side by side.
+    tickIdxs.forEach(function(i){
+      var cat = sd.categories[i];
+      var label = catCount>14 ? monthToQuarterLabel(cat) : cat;
+      textEl(g, o.x+x(cat), o.y+o.h+16, label, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'middle'});
+    });
+    el('line', {x1:o.x,y1:o.y+o.h,x2:o.x+o.w,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
+
+    // Many real-world monthly series aren't hand-smoothed — straight segments between
+    // the actual points give the natural, slightly irregular month-to-month look.
+    var lineGen = d3.line().x(function(d){return o.x+x(d.category);}).y(function(d){return o.y+y(d.value);}).curve(d3.curveLinear);
+    var areaGen = d3.area().x(function(d){return o.x+x(d.category);}).y0(o.y+o.h).y1(function(d){return o.y+y(d.value);}).curve(d3.curveLinear);
+    var showDots = catCount<=30;
+
+    var endLabels = [];
+    sd.series.forEach(function(s){
+      if(state.lineArea){ el('path', {d:areaGen(s.values), fill:s.color, 'fill-opacity':0.10, stroke:'none'}, g); }
+      el('path', {d:lineGen(s.values), fill:'none', stroke:s.color, 'stroke-width':2, 'stroke-linecap':'round','stroke-linejoin':'round'}, g);
+      s.values.forEach(function(v){
+        var cx=o.x+x(v.category), cy=o.y+y(v.value);
+        var isHi = !!state.highlights[v.key];
+        if(showDots){ el('circle', {cx:cx, cy:cy, r:4, fill:s.color, stroke:o.t.surface, 'stroke-width':2, 'data-key':v.key}, g); }
+        else{ el('circle', {cx:cx, cy:cy, r:5, fill:'#000000', 'fill-opacity':0, 'pointer-events':'all', 'data-key':v.key}, g); }
+        points.push({key:v.key, x:cx, y:cy, seriesName:s.name, category:v.category, value:v.value, shape:'circle', box:{cx:cx,cy:cy,r:4}});
+        if(isHi) highlightRing(g, 'circle', {cx:cx,cy:cy,r:4}, o.t);
+      });
+      var last = s.values[s.values.length-1];
+      endLabels.push({ name:s.name, x:o.x+x(last.category), origY:o.y+y(last.value) });
+    });
+    // Series names ride the line end, like the reference exhibit — identity by direct label, not by hue alone.
+    // When lines converge, nudge apart vertically and draw a short leader back to the true endpoint.
+    if(state.style.showLabels){
+      var minGap = 14;
+      endLabels.sort(function(a,b){ return a.origY-b.origY; });
+      endLabels.forEach(function(l,i){ l.y = i===0 ? l.origY : Math.max(l.origY, endLabels[i-1].y+minGap); });
+      endLabels.forEach(function(l){
+        if(Math.abs(l.y-l.origY) > 3){ el('line', {x1:l.x+2, y1:l.origY, x2:l.x+8, y2:l.y, stroke:o.t.axis, 'stroke-width':1}, g); }
+        textEl(g, l.x+10, l.y+4, l.name, {'font-size':12, 'font-weight':600, fill:o.t.ink});
+      });
+    }
+
+    // Free-position annotations (placed by clicking blank chart space) are anchored to a
+    // category + data value, not to a specific mark — recomputed from the live scales every render.
+    state.annotations.forEach(function(a){
+      if(a.key || a.xCat==null) return;
+      var ax = x(a.xCat);
+      if(ax==null) return;
+      freeAnchors[a.id] = { x:o.x+ax, y:o.y+y(a.yVal) };
+    });
+
+    if(o.interactive && (state.annotateArm || state.rangeArm)){
+      wireCreateOverlay(g, o, x, y, sd);
+    }
+    return { points:points, freeAnchors:freeAnchors };
+  }
+  function nearestCategoryIdx(sd, x, localX){
+    var best=0, bestD=Infinity;
+    sd.categories.forEach(function(cat,i){ var d=Math.abs(x(cat)-localX); if(d<bestD){ bestD=d; best=i; } });
+    return best;
+  }
+  // Transparent full-plot overlay used while a creation mode is armed: a click places a
+  // text annotation at the released position; a drag (range mode) sweeps a live preview
+  // band and commits a highlight range on release. Removed on every re-render (only
+  // present in the armed frame), so Cancel/Esc simply re-render without it.
+  function wireCreateOverlay(g, o, x, y, sd){
+    var svgNode = g.ownerSVGElement;
+    var overlay = el('rect', { x:o.x, y:o.y, width:o.w, height:o.h, fill:'#000000', 'fill-opacity':0,
+      'pointer-events':'all', style:'cursor:'+(state.rangeArm?'col-resize':'crosshair') }, g);
+    var dragStartIdx = null, previewRect = null, down = false;
+    overlay.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      try{ overlay.setPointerCapture(e.pointerId); }catch(err){}
+      var pt = d3.pointer(e, svgNode);
+      down = true;
+      dragStartIdx = nearestCategoryIdx(sd, x, pt[0]-o.x);
+      if(state.rangeArm){
+        var sx = o.x + x(sd.categories[dragStartIdx]);
+        previewRect = el('rect', {x:sx, y:o.y, width:0, height:o.h, fill:theme().mark, 'fill-opacity':0.18}, g);
+      }
+    });
+    overlay.addEventListener('pointermove', function(e){
+      if(!down || !state.rangeArm || !previewRect) return;
+      var pt = d3.pointer(e, svgNode);
+      var curIdx = nearestCategoryIdx(sd, x, pt[0]-o.x);
+      var xA = x(sd.categories[dragStartIdx]), xB = x(sd.categories[curIdx]);
+      previewRect.setAttribute('x', o.x+Math.min(xA,xB));
+      previewRect.setAttribute('width', Math.max(Math.abs(xB-xA),1));
+    });
+    function finish(e){
+      if(!down) return;
+      down = false;
+      var pt = d3.pointer(e, svgNode);
+      var localX = pt[0]-o.x, localY = pt[1]-o.y;
+      var endIdx = nearestCategoryIdx(sd, x, localX);
+      if(state.rangeArm){
+        if(previewRect){ previewRect.remove(); previewRect=null; }
+        var i1 = Math.min(dragStartIdx,endIdx), i2 = Math.max(dragStartIdx,endIdx);
+        if(i1!==i2){ state.rangeHighlights.push({ id: uid(), start: sd.categories[i1], end: sd.categories[i2], opacity:0.18 }); }
+        state.rangeArm = false; updateModeHint(); renderAnnotatePanel(); renderVisualize(); renderPublish();
+      } else if(state.annotateArm){
+        var text = prompt('Annotation text:', '');
+        state.annotateArm = false; updateModeHint();
+        if(text){
+          var yVal = Math.round(y.invert(localY)*100)/100;
+          state.annotations.push({ id: uid(), xCat: sd.categories[endIdx], yVal: yVal, text: text, dx: 14, dy: -40 });
+        }
+        renderAnnotatePanel(); renderVisualize(); renderPublish();
+      }
+      dragStartIdx = null;
+    }
+    overlay.addEventListener('pointerup', finish);
+    overlay.addEventListener('pointercancel', finish);
+  }
+
+  /* ---- pie ---- */
+  function drawPie(g, pd, o){
+    var points = [];
+    var total = d3.sum(pd, function(d){return d.value;}) || 1;
+    var pieGen = d3.pie().value(function(d){return d.value;}).sort(null);
+    var arcs = pieGen(pd);
+    var arcGen = d3.arc().innerRadius(state.pieDonut? o.r*0.58:0).outerRadius(o.r);
+    var arcGenOuter = d3.arc().innerRadius(state.pieDonut? o.r*0.58:0).outerRadius(o.r+5);
+    var center = el('g', {transform:'translate('+o.cx+','+o.cy+')'}, g);
+    arcs.forEach(function(a){
+      var d0 = pd[a.index];
+      var isHi = !!state.highlights[d0.key];
+      var path = el('path', {d:arcGen(a), fill:d0.color, stroke:o.t.surface, 'stroke-width':2, 'data-key':d0.key}, center);
+      var mid = (a.startAngle+a.endAngle)/2;
+      points.push({key:d0.key, x:o.cx+Math.sin(mid)*o.r*0.7, y:o.cy-Math.cos(mid)*o.r*0.7, category:d0.category, value:d0.value, shape:'arc'});
+      if(isHi){ el('path', {d:arcGenOuter(a), fill:'none', stroke:o.t.mark, 'stroke-width':2.5}, center); }
+      var pct = d0.value/total;
+      if(state.style.showLabels && pct>=0.08){
+        var lx2 = Math.sin(mid)*(o.r*(state.pieDonut?0.79:0.62)), ly2=-Math.cos(mid)*(o.r*(state.pieDonut?0.79:0.62));
+        var labelColor = relativeLuminance(d0.color) < 0.5 ? '#ffffff' : '#0b0b0b';
+        textEl(center, lx2, ly2+4, Math.round(pct*100)+'%', {'font-family':MONO,'font-size':11.5,'font-weight':600, fill:labelColor, 'text-anchor':'middle'});
+      }
+    });
+    return points;
+  }
+
+  /* ---- scatter ---- */
+  function drawScatter(g, scd, o){
+    var points = [];
+    var xExt = d3.extent(scd.points, function(p){return p.x;});
+    var yExt = d3.extent(scd.points, function(p){return p.y;});
+    var x = d3.scaleLinear().domain([Math.min(0,xExt[0]), xExt[1]||1]).nice().range([0,o.w]);
+    var y = d3.scaleLinear().domain([Math.min(0,yExt[0]), yExt[1]||1]).nice().range([o.h,0]);
+    var rScale = d3.scaleSqrt().domain([0, d3.max(scd.points,function(p){return p.size||0;}) || 1]).range([4,22]);
+
+    var scatterYTicks = y.ticks(5);
+    scatterYTicks.forEach(function(tk){
+      var gy=o.y+y(tk);
+      el('line', {x1:o.x,y1:gy,x2:o.x+o.w,y2:gy, stroke:o.t.grid,'stroke-width':1}, g);
+      textEl(g, o.x-8, gy+3, tickLabel(tk,scatterYTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'end'});
+    });
+    x.ticks(5).forEach(function(tk){
+      var gx=o.x+x(tk);
+      textEl(g, gx, o.y+o.h+16, fmtNum(tk), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'middle'});
+    });
+    el('line', {x1:o.x,y1:o.y+o.h,x2:o.x+o.w,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
+    el('line', {x1:o.x,y1:o.y,x2:o.x,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
+    textEl(g, o.x+o.w/2, o.y+o.h+30, state.mapping.x||'', {'font-size':11.5, fill:o.t.inkSoft,'text-anchor':'middle'});
+    var yLabel = el('text', {x:14, y:o.y+o.h/2, 'font-family':SANS, 'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'middle', transform:'rotate(-90 14 '+(o.y+o.h/2)+')'}, g);
+    yLabel.textContent = state.mapping.y||'';
+
+    scd.points.forEach(function(p){
+      var cx=o.x+x(p.x), cy=o.y+y(p.y);
+      var r = p.size!=null ? rScale(p.size) : 5;
+      var isHi = !!state.highlights[p.key];
+      el('circle', {cx:cx, cy:cy, r:r, fill:p.color, 'fill-opacity':0.85, stroke:o.t.surface, 'stroke-width':2, 'data-key':p.key}, g);
+      var label = (p.group && p.group!=='__all__') ? p.group : null;
+      points.push({key:p.key, x:cx, y:cy, category:label, value:(state.mapping.x+' '+fmtNum(p.x)+', '+state.mapping.y+' '+fmtNum(p.y)), shape:'circle', box:{cx:cx,cy:cy,r:r}});
+      if(isHi) highlightRing(g, 'circle', {cx:cx,cy:cy,r:r}, o.t);
+    });
+    return points;
+  }
+
+  /* ---- range (dumbbell) ---- */
+  function drawRange(g, rd, o){
+    var points=[];
+    var allVals=[]; rd.forEach(function(d){ allVals.push(d.a,d.b); });
+    var ext = d3.extent(allVals);
+    var x = d3.scaleLinear().domain([Math.min(0,ext[0]||0), ext[1]||1]).nice().range([0,o.w]);
+    var rowScale = d3.scaleBand().domain(rd.map(function(d){return d.category;})).range([0,o.h]).paddingInner(0.4).paddingOuter(0.12);
+
+    var rangeTicks = x.ticks(5);
+    rangeTicks.forEach(function(tk){
+      var gx=o.x+x(tk);
+      el('line', {x1:gx,y1:o.y,x2:gx,y2:o.y+o.h, stroke:o.t.grid,'stroke-width':1}, g);
+      textEl(g, gx, o.y+o.h+16, tickLabel(tk,rangeTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'middle'});
+    });
+    rd.forEach(function(d){
+      var cy = o.y+rowScale(d.category)+rowScale.bandwidth()/2;
+      textEl(g, o.x-8, cy+4, d.category, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'end'});
+    });
+    el('line', {x1:o.x,y1:o.y+o.h,x2:o.x+o.w,y2:o.y+o.h, stroke:o.t.axis,'stroke-width':1}, g);
+
+    rd.forEach(function(d){
+      var cy = o.y+rowScale(d.category)+rowScale.bandwidth()/2;
+      var ax=o.x+x(d.a), bx=o.x+x(d.b);
+      var isHi = !!state.highlights[d.key];
+      el('rect', {x:o.x, y:cy-rowScale.bandwidth()/2, width:o.w, height:rowScale.bandwidth(), fill:'#000000', 'fill-opacity':0, 'pointer-events':'all', 'data-key':d.key}, g);
+      el('line', {x1:ax, y1:cy, x2:bx, y2:cy, stroke:o.t.axis, 'stroke-width':2}, g);
+      el('circle', {cx:ax, cy:cy, r:5, fill:o.t.muted, stroke:o.t.surface,'stroke-width':2}, g);
+      el('circle', {cx:bx, cy:cy, r:5, fill:o.t.navy, stroke:o.t.surface,'stroke-width':2}, g);
+      var box = {x:Math.min(ax,bx)-6, y:cy-8, w:Math.abs(bx-ax)+12, h:16, rx:8};
+      points.push({key:d.key, x:(ax+bx)/2, y:cy, category:d.category, value: fmtNum(d.a)+' → '+fmtNum(d.b), shape:'rect', box:box});
+      if(isHi) highlightRing(g,'rect', box, o.t);
+      if(state.style.showLabels){
+        textEl(g, ax, cy-10, fmtNum(d.a), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'middle'});
+        textEl(g, bx, cy-10, fmtNum(d.b), {'font-family':MONO,'font-size':10.5,'font-weight':600, fill:o.t.ink, 'text-anchor':'middle'});
+      }
+    });
+    return points;
+  }
+
+  /* ---- waterfall ---- */
+  function drawWaterfall(g, wd, o){
+    var points=[];
+    var maxVal = d3.max(wd, function(d){return Math.max(d.start,d.end);}) || 1;
+    var minVal = Math.min(0, d3.min(wd, function(d){return Math.min(d.start,d.end);}));
+    var valueScale = d3.scaleLinear().domain([minVal, maxVal]).nice().range([o.h,0]);
+    var catScale = d3.scaleBand().domain(wd.map(function(d){return d.category;})).range([0,o.w]).paddingInner(0.32).paddingOuter(0.14);
+
+    var wfTicks = valueScale.ticks(5);
+    wfTicks.forEach(function(tk){
+      var gy=o.y+valueScale(tk);
+      el('line', {x1:o.x,y1:gy,x2:o.x+o.w,y2:gy, stroke:o.t.grid,'stroke-width':1}, g);
+      textEl(g, o.x-8, gy+3, tickLabel(tk,wfTicks), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'end'});
+    });
+    wd.forEach(function(d){
+      textEl(g, o.x+catScale(d.category)+catScale.bandwidth()/2, o.y+o.h+16, d.category, {'font-size':11, fill:o.t.inkSoft, 'text-anchor':'middle'});
+    });
+    el('line', {x1:o.x,y1:o.y+valueScale(0),x2:o.x+o.w,y2:o.y+valueScale(0), stroke:o.t.axis,'stroke-width':1}, g);
+
+    var bw = Math.min(catScale.bandwidth(), 44);
+    var prevEnd=null, prevX=null;
+    wd.forEach(function(d,i){
+      var band=catScale(d.category), full=catScale.bandwidth();
+      var bx=o.x+band+(full-bw)/2;
+      var top=o.y+valueScale(Math.max(d.start,d.end));
+      var bottom=o.y+valueScale(Math.min(d.start,d.end));
+      var h=Math.max(bottom-top,1);
+      var color = d.isTotal ? o.t.navy : (d.value>=0 ? cats()[0] : o.t.mark);
+      var isHi = !!state.highlights[d.key];
+      var path = el('path', {d: roundedTopRect(bx, top, bw, h, 3), fill:color}, g);
+      path.setAttribute('data-key', d.key);
+      var box={x:bx,y:top,w:bw,h:h,rx:3};
+      points.push({key:d.key, x:bx+bw/2, y:top, category:d.category, value:d.value, shape:'rect', box:box});
+      if(isHi) highlightRing(g,'rect',box,o.t);
+      if(state.style.showLabels){
+        var lbl = d.isTotal ? fmtNum(d.end) : (d.value>=0? '+':'')+fmtNum(d.value);
+        textEl(g, bx+bw/2, top-8, lbl, {'font-family':MONO,'font-size':10.5, fill:o.t.inkSoft, 'text-anchor':'middle'});
+      }
+      if(prevEnd!=null){
+        var y1=o.y+valueScale(prevEnd);
+        el('line', {x1:prevX, y1:y1, x2:bx+bw/2, y2:y1, stroke:o.t.axis,'stroke-width':1,'stroke-dasharray':'2,2'}, g);
+      }
+      prevEnd = d.end; prevX = bx+bw/2;
+    });
+    return points;
+  }
+
+  /* ---- combo (indexed) ---- */
+  function drawCombo(g, cd, o){
+    var points=[];
+    var allIdx = [];
+    cd.series.forEach(function(s){ s.values.forEach(function(v){ allIdx.push(v.indexed); }); });
+    var maxIdx = d3.max(allIdx) || 100, minIdx = Math.min(0, d3.min(allIdx));
+    var valueScale = d3.scaleLinear().domain([minIdx, maxIdx]).nice().range([o.h,0]);
+    var catScale = d3.scaleBand().domain(cd.categories).range([0,o.w]).paddingInner(0.35).paddingOuter(0.16);
+
+    valueScale.ticks(5).forEach(function(tk){
+      var gy=o.y+valueScale(tk);
+      el('line', {x1:o.x,y1:gy,x2:o.x+o.w,y2:gy, stroke:o.t.grid,'stroke-width':1}, g);
+      textEl(g, o.x-8, gy+3, fmtNum(tk), {'font-family':MONO,'font-size':10.5, fill:o.t.muted, 'text-anchor':'end'});
+    });
+    cd.categories.forEach(function(cat){ textEl(g, o.x+catScale(cat)+catScale.bandwidth()/2, o.y+o.h+16, cat, {'font-size':11, fill:o.t.inkSoft, 'text-anchor':'middle'}); });
+    el('line', {x1:o.x,y1:o.y+valueScale(0),x2:o.x+o.w,y2:o.y+valueScale(0), stroke:o.t.axis,'stroke-width':1}, g);
+    var idx100Y = o.y+valueScale(100);
+    el('line', {x1:o.x,y1:idx100Y,x2:o.x+o.w,y2:idx100Y, stroke:o.t.muted,'stroke-width':1,'stroke-dasharray':'3,3'}, g);
+    textEl(g, o.x+o.w, idx100Y-5, 'Base = 100', {'font-size':10, fill:o.t.muted, 'text-anchor':'end'});
+    var yLabelText = el('text', {x:14, y:o.y+o.h/2, 'font-family':SANS, 'font-size':11, fill:o.t.inkSoft, 'text-anchor':'middle', transform:'rotate(-90 14 '+(o.y+o.h/2)+')'}, g);
+    yLabelText.textContent = 'Index (first period = 100)';
+
+    var barSeries = cd.series[0];
+    var lineSeriesArr = cd.series.slice(1);
+    var bw = Math.min(catScale.bandwidth()*0.5, 26);
+    cd.categories.forEach(function(cat, ci){
+      var band=catScale(cat), full=catScale.bandwidth();
+      var v = barSeries.values[ci];
+      var bx=o.x+band+(full-bw)/2;
+      var top=o.y+valueScale(Math.max(v.indexed,0)), bottom=o.y+valueScale(Math.min(v.indexed,0));
+      var h=Math.max(bottom-top,1);
+      var isHi=!!state.highlights[v.key];
+      var mark=el('path',{d:roundedTopRect(bx,top,bw,h,3), fill:barSeries.color,'fill-opacity':0.82},g);
+      mark.setAttribute('data-key', v.key);
+      var box={x:bx,y:top,w:bw,h:h,rx:3};
+      points.push({key:v.key,x:bx+bw/2,y:top,seriesName:barSeries.name,category:cat,value:Math.round(v.indexed),shape:'rect',box:box});
+      if(isHi) highlightRing(g,'rect',box,o.t);
+    });
+    var lineGen = d3.line().x(function(d){return o.x+catScale(d.category)+catScale.bandwidth()/2;}).y(function(d){return o.y+valueScale(d.indexed);}).curve(d3.curveMonotoneX);
+    lineSeriesArr.forEach(function(s){
+      el('path', {d:lineGen(s.values), fill:'none', stroke:s.color,'stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round'}, g);
+      s.values.forEach(function(v){
+        var cx=o.x+catScale(v.category)+catScale.bandwidth()/2, cy=o.y+valueScale(v.indexed);
+        var isHi=!!state.highlights[v.key];
+        el('circle',{cx:cx,cy:cy,r:4,fill:s.color,stroke:o.t.surface,'stroke-width':2,'data-key':v.key},g);
+        points.push({key:v.key,x:cx,y:cy,seriesName:s.name,category:v.category,value:Math.round(v.indexed),shape:'circle',box:{cx:cx,cy:cy,r:4}});
+        if(isHi) highlightRing(g,'circle',{cx:cx,cy:cy,r:4},o.t);
+      });
+    });
+    return points;
+  }
+
+  /* ---- heatmap ---- */
+  function drawHeatmap(g, sd, o){
+    var points=[];
+    var allVals=[]; sd.series.forEach(function(s){ s.values.forEach(function(v){ allVals.push(v.value); }); });
+    var maxV=d3.max(allVals)||1, minV=Math.min(0, d3.min(allVals));
+    var colorScale = d3.scaleQuantize().domain([minV,maxV]).range(SEQ_BLUE);
+    var rowScale = d3.scaleBand().domain(sd.categories).range([0,o.h]).paddingInner(0.08);
+    var colScale = d3.scaleBand().domain(sd.series.map(function(s){return s.name;})).range([0,o.w]).paddingInner(0.08);
+
+    sd.series.forEach(function(s){ textEl(g, o.x+colScale(s.name)+colScale.bandwidth()/2, o.y-10, s.name, {'font-size':11, fill:o.t.inkSoft, 'text-anchor':'middle'}); });
+    sd.categories.forEach(function(cat){ textEl(g, o.x-10, o.y+rowScale(cat)+rowScale.bandwidth()/2+4, cat, {'font-size':11.5, fill:o.t.inkSoft, 'text-anchor':'end'}); });
+
+    sd.categories.forEach(function(cat){
+      sd.series.forEach(function(s){
+        var v = s.values.find(function(vv){return vv.category===cat;});
+        if(!v) return;
+        var cx=o.x+colScale(s.name), cy=o.y+rowScale(cat);
+        var cw=colScale.bandwidth(), ch=rowScale.bandwidth();
+        var color = colorScale(v.value);
+        var isHi=!!state.highlights[v.key];
+        el('rect', {x:cx+1,y:cy+1,width:Math.max(cw-2,0),height:Math.max(ch-2,0), rx:3, fill:color, 'data-key':v.key}, g);
+        var box={x:cx+1,y:cy+1,w:cw-2,h:ch-2,rx:3};
+        points.push({key:v.key,x:cx+cw/2,y:cy+ch/2,seriesName:s.name,category:cat,value:v.value,shape:'rect',box:box});
+        if(isHi) highlightRing(g,'rect',box,o.t);
+        if(state.style.showLabels && cw>=32 && ch>=20){
+          var lum = relativeLuminance(color);
+          textEl(g, cx+cw/2, cy+ch/2+4, fmtNum(v.value), {'font-family':MONO,'font-size':10.5,'text-anchor':'middle', fill: lum<0.5?'#ffffff':'#0b0b0b'});
+        }
+      });
+    });
+    return points;
+  }
+
+  /* ============ interactivity ============ */
+  function wireInteractivity(container, svg, plotPoints){
+    var byKey = {}; plotPoints.forEach(function(p){ byKey[p.key]=p; });
+    svg.querySelectorAll('[data-key]').forEach(function(node){
+      node.style.cursor='pointer';
+      node.addEventListener('pointerenter', function(e){
+        var p = byKey[node.getAttribute('data-key')];
+        if(!p) return;
+        var rect = container.getBoundingClientRect();
+        var label = p.seriesName ? (p.category+' · '+p.seriesName) : (p.category || 'Value');
+        var fill = node.getAttribute('fill');
+        var invisible = fill==='none' || node.getAttribute('fill-opacity')==='0';
+        var rows = [{ name:label, value: (typeof p.value==='number'? fmtNum(p.value): p.value), color: (fill && !invisible) ? fill : null }];
+        showTooltip(container, (e.clientX-rect.left), (e.clientY-rect.top), rows);
+      });
+      node.addEventListener('pointermove', function(e){
+        var rect = container.getBoundingClientRect();
+        if(tipEl && !tipEl.hidden){ tipEl.style.left=(e.clientX-rect.left)+'px'; tipEl.style.top=(e.clientY-rect.top)+'px'; }
+      });
+      node.addEventListener('pointerleave', hideTooltip);
+      node.addEventListener('click', function(){
+        var key = node.getAttribute('data-key');
+        if(state.annotateArm){
+          var text = prompt('Note for this point:', '');
+          state.annotateArm = false; updateModeHint();
+          if(text){ state.annotations.push({id:uid(), key:key, text:text, dx: 14, dy:-40}); }
+          renderVisualize(); renderPublish();
+        } else {
+          if(state.highlights[key]) delete state.highlights[key]; else state.highlights[key]=true;
+          renderVisualize(); renderPublish();
+        }
+      });
+    });
+  }
+
+  /* ============ table view ============ */
+  function renderTableView(container){
+    container.innerHTML='';
+    var wrap = document.createElement('div'); wrap.className='table-view-wrap';
+    var table = document.createElement('table'); table.className='preview-table';
+    var cols;
+    if(state.chartType==='pie') cols = [state.mapping.category, state.mapping.value];
+    else if(state.chartType==='scatter') cols = [state.mapping.x, state.mapping.y].concat(state.mapping.size?[state.mapping.size]:[]);
+    else if(state.chartType==='waterfall') cols = [state.mapping.category, state.mapping.value];
+    else if(state.chartType==='range') cols = [state.mapping.category, state.mapping.rangeA, state.mapping.rangeB];
+    else cols = [state.mapping.category].concat(state.mapping.series.length? state.mapping.series : numericColumns().map(function(c){return c.name;}));
+    var thead=document.createElement('thead'); var tr=document.createElement('tr');
+    cols.forEach(function(c){ var th=document.createElement('th'); th.textContent=c||''; tr.appendChild(th); });
+    thead.appendChild(tr); table.appendChild(thead);
+    var tbody=document.createElement('tbody');
+    state.rows.forEach(function(r){
+      var row=document.createElement('tr');
+      cols.forEach(function(c, i){
+        var td=document.createElement('td');
+        if(i>0 || state.chartType==='scatter') td.className='num';
+        td.textContent = r[c];
+        row.appendChild(td);
+      });
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    container.appendChild(wrap);
+  }
+
+  /* ============ step renderers ============ */
+  function renderVisualize(){
+    renderMappingPanel();
+    renderRefinePanel();
+    renderAnnotatePanel();
+    updateModeHint();
+    document.getElementById('toggleTableBtn').textContent = state.tableView ? 'View as chart' : 'View as table';
+    var area = document.getElementById('canvasArea');
+    if(state.tableView){ renderTableView(area); } else { buildChart(area, {interactive:true}); }
+  }
+  function renderPublish(){
+    var svg = buildChart(document.getElementById('publishPreview'), {interactive:false});
+    if(state.cvdFilter && state.cvdFilter!=='none'){ ensureCvdFilterDefs(); svg.style.filter = 'url(#cvd-'+state.cvdFilter+')'; }
+    updateHeightField();
+  }
+
+  /* ============ export & preview toolbar ============ */
+  var DEVICES = [
+    { id:'mobile', w:375, label:'Mobile', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="10" y1="18.5" x2="14" y2="18.5"/></svg>' },
+    { id:'tablet', w:768, label:'Tablet', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="10.5" y1="17.3" x2="13.5" y2="17.3"/></svg>' },
+    { id:'desktop', w:1200, label:'Desktop', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="13" rx="1.5"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' }
+  ];
+  var CVD_FILTERS = [
+    { id:'none', label:'None' },
+    { id:'protan', label:'Protan' },
+    { id:'deutan', label:'Deutan' },
+    { id:'tritan', label:'Tritan' },
+    { id:'mono', label:'Mono' }
+  ];
+  var cvdFilterDefsAdded = false;
+  function ensureCvdFilterDefs(){
+    if(cvdFilterDefsAdded) return;
+    cvdFilterDefsAdded = true;
+    var svg = el('svg', {width:0, height:0, style:'position:absolute'});
+    document.body.appendChild(svg);
+    var defs = el('defs', {}, svg);
+    var mats = {
+      protan: '0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0',
+      deutan: '0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0',
+      tritan: '0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0',
+      mono:   '0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0'
+    };
+    Object.keys(mats).forEach(function(k){
+      var f = el('filter', {id:'cvd-'+k}, defs);
+      el('feColorMatrix', {type:'matrix', values:mats[k]}, f);
+    });
+  }
+  function applyExportWidth(w){
+    state.exportWidth = w;
+    document.getElementById('sizeWidth').value = w;
+    document.getElementById('publishPreview').style.maxWidth = (w+48)+'px';
+    updateHeightField();
+  }
+  function updateHeightField(){
+    var svg = document.querySelector('#publishPreview svg');
+    if(!svg) return;
+    var vb = svg.getAttribute('viewBox').split(' ').map(Number);
+    document.getElementById('sizeHeight').value = Math.round((state.exportWidth||900) * (vb[3]/vb[2]));
+  }
+  function buildPreviewToolbar(){
+    document.getElementById('sizeWidth').addEventListener('input', function(){
+      var w = parseInt(this.value,10) || 900;
+      applyExportWidth(w);
+      document.querySelectorAll('#deviceButtons .icon-btn').forEach(function(b){ b.setAttribute('aria-pressed', String(+b.dataset.w===w)); });
+    });
+
+    var devWrap = document.getElementById('deviceButtons');
+    DEVICES.forEach(function(d){
+      var b = document.createElement('button'); b.className='icon-btn'; b.type='button'; b.title=d.label; b.dataset.w=d.w;
+      b.innerHTML = d.icon;
+      b.addEventListener('click', function(){
+        applyExportWidth(d.w);
+        document.querySelectorAll('#deviceButtons .icon-btn').forEach(function(o){ o.setAttribute('aria-pressed', o===b); });
+      });
+      devWrap.appendChild(b);
+    });
+
+    var cvdWrap = document.getElementById('cvdButtons');
+    CVD_FILTERS.forEach(function(c,i){
+      var b = document.createElement('button'); b.className='icon-btn'; b.type='button'; b.title=c.label;
+      b.style.fontSize='10.5px'; b.style.fontWeight='700'; b.textContent=c.label.slice(0,1);
+      b.setAttribute('aria-pressed', i===0);
+      b.addEventListener('click', function(){
+        var svg = document.querySelector('#publishPreview svg');
+        if(svg){ svg.style.filter = c.id==='none' ? '' : ('url(#cvd-'+c.id+')'); }
+        if(c.id!=='none') ensureCvdFilterDefs();
+        state.cvdFilter = c.id;
+        document.querySelectorAll('#cvdButtons .icon-btn').forEach(function(o){ o.setAttribute('aria-pressed', o===b); });
+      });
+      cvdWrap.appendChild(b);
+    });
+
+    var themeWrap = document.getElementById('themeButtons');
+    var themeBtns = [
+      { id:'light', label:'Light', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>' },
+      { id:'dark', label:'Dark', icon:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg>' }
+    ];
+    themeBtns.forEach(function(t){
+      var b = document.createElement('button'); b.className='icon-btn'; b.type='button'; b.title=t.label; b.innerHTML=t.icon;
+      b.addEventListener('click', function(){
+        var cur = document.documentElement.getAttribute('data-theme');
+        if(cur===t.id){ document.documentElement.removeAttribute('data-theme'); }
+        else{ document.documentElement.setAttribute('data-theme', t.id); }
+        document.querySelectorAll('#themeButtons .icon-btn').forEach(function(o){ o.setAttribute('aria-pressed', o.title.toLowerCase()===document.documentElement.getAttribute('data-theme')); });
+        renderChartsIfVisible();
+      });
+      themeWrap.appendChild(b);
+    });
+
+    applyExportWidth(900);
+  }
+  function serializeChart(){
+    var tmp = document.createElement('div');
+    tmp.style.position='absolute'; tmp.style.left='-9999px';
+    document.body.appendChild(tmp);
+    var svg = buildChart(tmp, {interactive:false});
+    svg.setAttribute('xmlns', SVGNS);
+    var vb = svg.getAttribute('viewBox').split(' ').map(Number);
+    var s = new XMLSerializer().serializeToString(svg);
+    document.body.removeChild(tmp);
+    return { svgString: s, vbW: vb[2], vbH: vb[3] };
+  }
+  function openExportModal(kind){
+    var data = serializeChart();
+    var root = document.getElementById('modalRoot');
+    root.innerHTML='';
+    var backdrop = document.createElement('div'); backdrop.className='modal-backdrop';
+    backdrop.addEventListener('click', function(e){ if(e.target===backdrop) closeModal(); });
+    var modal = document.createElement('div'); modal.className='modal';
+    backdrop.appendChild(modal); root.appendChild(backdrop);
+
+    if(kind==='svg'){
+      modal.innerHTML = '<h3>Export as SVG</h3><p class="hint">Select all, copy, then paste into a plain text file saved with a .svg extension &mdash; or paste directly into your report or CMS.</p>';
+      var ta = document.createElement('textarea'); ta.className='svg-code'; ta.readOnly=true; ta.value=data.svgString;
+      modal.appendChild(ta);
+      var actions = document.createElement('div'); actions.className='modal-actions';
+      var copyBtn = document.createElement('button'); copyBtn.className='btn primary'; copyBtn.type='button'; copyBtn.textContent='Select all';
+      copyBtn.addEventListener('click', function(){ ta.focus(); ta.select(); try{ document.execCommand('copy'); copyBtn.textContent='Copied!'; }catch(e){} });
+      var closeBtn = document.createElement('button'); closeBtn.className='btn ghost'; closeBtn.type='button'; closeBtn.textContent='Close';
+      closeBtn.addEventListener('click', closeModal);
+      actions.appendChild(copyBtn); actions.appendChild(closeBtn);
+      modal.appendChild(actions);
+    } else {
+      var scale = (state.exportWidth||1200) / data.vbW;
+      var pxW = Math.round(data.vbW*scale), pxH = Math.round(data.vbH*scale);
+      modal.innerHTML = '<h3>Export as PNG</h3><p class="hint">Right-click the image below and choose “Save image as…” to download it ('+pxW+'×'+pxH+'px).</p>';
+      var img = document.createElement('img');
+      modal.appendChild(img);
+      var actions = document.createElement('div'); actions.className='modal-actions';
+      var closeBtn = document.createElement('button'); closeBtn.className='btn ghost'; closeBtn.type='button'; closeBtn.textContent='Close';
+      closeBtn.addEventListener('click', closeModal);
+      actions.appendChild(closeBtn);
+      modal.appendChild(actions);
+
+      var svgBlob = new Blob([data.svgString], {type:'image/svg+xml;charset=utf-8'});
+      var url = URL.createObjectURL(svgBlob);
+      var image = new Image();
+      image.onload = function(){
+        var canvas = document.createElement('canvas');
+        canvas.width = pxW; canvas.height = pxH;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = theme().surface;
+        ctx.fillRect(0,0,pxW,pxH);
+        ctx.drawImage(image, 0,0,pxW,pxH);
+        img.src = canvas.toDataURL('image/png');
+        URL.revokeObjectURL(url);
+      };
+      image.onerror = function(){
+        modal.querySelector('p.hint').textContent = 'Preview unavailable in this browser. Use "Export as SVG" instead and convert it with any image tool.';
+        URL.revokeObjectURL(url);
+      };
+      image.src = url;
+    }
+  }
+  function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+
+})();
+</script>
